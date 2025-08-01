@@ -124,7 +124,7 @@ pydub==0.25.1
     # via lunar_tools_art (pyproject.toml)
 python-dotenv==1.1.0
     # via lunar_tools_art (pyproject.toml)
-requests==2.32.3
+requests==2.32.4
     # via
     #   opentelemetry-exporter-otlp-proto-http
     #   pooch
