@@ -1,0 +1,101 @@
+- task: Restructure package layout
+  goal: Adopt a modern `src/` layout and eliminate namespace drift.
+  actions:
+    - Move all production code into `src/lunar_tools_art/` with an `__init__.py`.
+    - Split `lunar_tools_art.py` into `manager.py` and `__init__.py` (expose `Manager`).
+    - Update all imports (`from lunar_tools_art import Manager`) across prototypes and tests.
+    - Delete root-level `.py` modules once replacements are stable.
+  status: done
+
+- task: Provide canonical `lunar_tools` interface
+  goal: Unblock prototypes that import `import lunar_tools as lt`.
+  actions:
+    - Create a thin shim package `src/lunar_tools/__init__.py` that re-exports `lunar_tools_art.Manager` and helpers.
+    - Add `DeprecationWarning` to guide migration to `lunar_tools_art`.
+    - Refactor two prototypes to use the new import as a smoke test.
+  status: done
+
+- task: Purge artefacts & update `.gitignore`
+  goal: Remove committed binaries and prevent future cruft.
+  actions:
+    - Delete `__MACOSX`, `*.pyc`, `*.log`, and stray temp files from the repo.
+    - Add a project-wide `.gitignore` with `*.py[cod]`, `__pycache__/`, `*.log`, `*.DS_Store`, `__MACOSX/`, `frames/`, `.output/`.
+    - Force-add a clean commit (`git add --all && git commit -m "chore: clean artefacts"`).
+  status: todo
+
+- task: Pin and segment dependencies
+  goal: Ensure reproducible installs and lighter optional extras.
+  actions:
+    - Replace `requirements.txt` with a `pyproject.toml` using PEP-621 metadata.
+    - Define `[project.optional-dependencies]` sections (`vision`, `audio`, `gpu`).
+    - Pin critical libs with upper/lower bounds (e.g., `opencv-python>=4.10,<5`).
+    - Add `pip-tools` compile workflow to CI.
+  status: done
+
+- task: Centralize configuration management
+  goal: Eliminate scattered `.env`, JSON, and magic strings.
+  actions:
+    - Introduce `src/lunar_tools_art/config.py` that loads from `settings.toml` or env vars.
+    - Replace hard-coded API keys in prototypes with `config.get("OPENWEATHER_API_KEY")`.
+    - Fail gracefully (raise `MissingConfigError`) when keys are absent.
+    - Document expected variables in README.
+  status: done
+
+- task: Implement graceful shutdown pattern
+  goal: Replace infinite `while True:` loops with interrupt-friendly control flows.
+  actions:
+    - Create `lunar_tools_art.loop_utils.run_until_quit(callback, *, fps=30)`.
+    - Refactor five busiest prototypes (`audio-reactive-fractal-forest`, `cosmic-soundscape`, etc.) to use the helper.
+    - Provide fallback exit via `Ctrl-C` and optional on-screen “q to quit” listener.
+    - Unit-test the helper with `pytest-monkeypatch`.
+  status: done
+
+- task: Secure logging & privacy
+  goal: Prevent accidental leaks of user prompts or mic data.
+  actions:
+    - Configure root logger in `config.py`, defaulting to INFO and redacting PII with a custom `Filter`.
+    - Remove on-disk `.log` writes from prototypes; stream to stdout instead.
+    - Add `bandit -r src` to CI pipeline to catch future issues.
+  status: done
+
+- task: Fix failing test suite & expand coverage
+  goal: Reach green CI on Python 3.9-3.12.
+  actions:
+    - Update test imports to new module paths.
+    - Mock external APIs (OpenAI, ElevenLabs) using `pytest-vcr`.
+    - Add coverage threshold (≥ 80 %) and badge in README.
+    - Run tests on GitHub Actions matrix.
+  status: todo
+
+- task: Introduce type hints & docstrings
+  goal: Improve IDE support and static analysis.
+  actions:
+    - Add `from __future__ import annotations` and annotate public API in `manager.py`, `utils.py`.
+    - Run `mypy --strict` in CI.
+    - Enforce docstring style with `pydocstyle`.
+  status: todo
+
+- task: Lazy-load heavyweight ML models
+  goal: Reduce startup time and VRAM usage.
+  actions:
+    - Add a `@lazy_property` decorator in `utils.py`.
+    - Apply it to SDXL pipelines and VGG-19 loads in visualizer prototypes.
+    - Expose `--preload` CLI flag to warm models when desired.
+  status: todo
+
+- task: Add CI/CD & quality gates
+  goal: Automate lint, test, and build workflows.
+  actions:
+    - Configure GitHub Actions with jobs: **lint** (`ruff`, `bandit`), **test** (`pytest --cov`), **build** (wheel, sdist).
+    - Fail build on ruff errors or coverage < 80 %.
+    - Publish wheels to TestPyPI on push to `main`.
+  status: todo
+
+- task: Dockerize runtime environment
+  goal: Provide reproducible deployments with CPU & GPU variants.
+  actions:
+    - Author `Dockerfile` (ubuntu-slim, poetry install, ports 8765/7860).
+    - Add optional `--build-arg CUDA="12.4.0"` path for GPU base image.
+    - Supply `docker-compose.yml` with volumes for model cache.
+    - Document usage in README.
+  status: todo

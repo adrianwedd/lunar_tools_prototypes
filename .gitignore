@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.pyc
+*.pyd
+*.pyo
+*.egg-info/
+.Python
+build/
+dist/
+
+# IDEs and editors
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+.DS_Store
+
+# Environment variables
+.env
+
+# Project-specific ignores
+.pytest_cache/
+.ruff_cache/
+.output/
+logs/
+.temp/
+*.log
+frames/
+__MACOSX/

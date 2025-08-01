@@ -1,0 +1,7 @@
+[llm]
+provider = "gpt4"
+
+[llm.gpt4]
+
+[llm.ollama]
+model = "deepseek-r1:1.5b"
