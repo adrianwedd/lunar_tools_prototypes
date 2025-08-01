@@ -6,7 +6,7 @@ from utils import record_and_transcribe_speech
 class InteractiveStorytellingCanvas:
     def __init__(
         self,
-        lunar_tools_art_manager: LunarToolsArtManager,
+        lunar_tools_art_manager,
         loop_delay=2,
         glif_id="clgh1vxtu0011mo081dplq3xs",
     ):
@@ -75,6 +75,8 @@ class InteractiveStorytellingCanvas:
 
 
 if __name__ == "__main__":
-    lunar_tools_art_manager = LunarToolsArtManager()
+    from src.lunar_tools_art.manager import Manager
+
+    lunar_tools_art_manager = Manager()
     canvas = InteractiveStorytellingCanvas(lunar_tools_art_manager)
     canvas.run()

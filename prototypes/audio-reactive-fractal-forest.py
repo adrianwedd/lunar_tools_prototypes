@@ -98,7 +98,7 @@ class AudioReactiveFractalForest:
                 c_imag = (y - height / 2) * 4.0 / width / self.fractal_params["zoom"]
 
                 iteration = 0
-                for i in range(int(self.fractal_params["iteration_depth"])):
+                for _ in range(int(self.fractal_params["iteration_depth"])):
                     zx2 = zx * zx
                     zy2 = zy * zy
                     if zx2 + zy2 > 4.0:

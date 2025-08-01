@@ -129,9 +129,6 @@ class Whispers:
             return False
 
     def _generate_sound(self):
-        freq = np.random.uniform(200, 2000)
-        duration = np.random.uniform(0.1, 0.5)
-
         # Generate a short, abstract sound description
         sound_description = random.choice(
             [

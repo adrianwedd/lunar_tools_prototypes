@@ -54,7 +54,7 @@ class AIFashionShow:
         self.logger.info("Welcome to the AI Fashion Show!")
         for theme in self.themes:
             self.logger.info(f"\nNow presenting: {theme.capitalize()} Collection")
-            for i in range(self.outfits_per_theme):
+            for _ in range(self.outfits_per_theme):
                 try:
                     outfit = self.generate_outfit(theme)
                     if outfit:
@@ -81,6 +81,8 @@ class AIFashionShow:
 
 
 if __name__ == "__main__":
-    lunar_tools_art_manager = LunarToolsArtManager()
+    from src.lunar_tools_art.manager import Manager
+
+    lunar_tools_art_manager = Manager()
     fashion_show = AIFashionShow(lunar_tools_art_manager)
     fashion_show.run()

@@ -115,3 +115,43 @@ The system uses `settings.toml` for configuration:
 - All prototypes have smoke tests that mock keyboard input to ensure basic instantiation
 - Tests verify Manager initialization and tool availability
 - Use mocking for external API calls and hardware dependencies
+
+## Security & Development Practices
+
+**Pre-commit Hooks (`.pre-commit-config.yaml`)**
+
+- Comprehensive security scanning with detect-secrets, bandit
+- Code quality enforcement with black, isort, ruff
+- Automatic trailing whitespace and YAML validation
+- Run `pre-commit install` after cloning to enable hooks
+
+**Security Infrastructure**
+
+- **PII Filtering**: Enhanced patterns in `config.py` for API keys, tokens, emails, phone numbers
+- **Secrets Detection**: `.secrets.baseline` file tracks and manages known secrets
+- **Secure File Operations**: `src/lunar_tools_art/utils.py` provides secure temp file creation
+- **Exception Handling**: Centralized error handling patterns in `src/lunar_tools_art/exceptions.py`
+
+**Environment Configuration**
+
+- Use `.env.example` as template for API key setup
+- Never commit actual API keys - use environment variables
+- Configuration supports nested settings via `LLM__PROVIDER=ollama` format
+
+**Development Workflow**
+
+1. Install pre-commit hooks: `pre-commit install`
+2. Run security scan: `bandit -r src/ prototypes/`
+3. Run tests: `pytest -v`
+4. Check for secrets: `detect-secrets scan --baseline .secrets.baseline`
+
+## Recent Security Improvements (August 2025)
+
+- ✅ Removed hardcoded API keys from temporary files
+- ✅ Implemented comprehensive pre-commit hooks for security scanning
+- ✅ Enhanced PII filtering patterns to catch more sensitive data
+- ✅ Fixed critical import errors across all prototypes
+- ✅ Standardized exception handling with centralized decorators
+- ✅ Created secure temporary file creation utilities
+- ✅ Added CI/CD pipeline with automated security checks
+- ⚠️ Git history cleanup still pending for complete secret removal

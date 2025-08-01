@@ -1,3 +1,4 @@
+import textwrap
 import time
 
 import numpy as np
@@ -10,7 +11,7 @@ from PIL import Image, ImageDraw, ImageFont
 class ChatRoomNarrativeQuilt:
     def __init__(
         self,
-        lunar_tools_art_manager: LunarToolsArtManager,
+        lunar_tools_art_manager,
         flask_app=None,
         socketio=None,
         font_path="arial.ttf",
@@ -49,7 +50,8 @@ class ChatRoomNarrativeQuilt:
             self._process_chat_message(msg)
             # Emit updated quilt image to all clients (in a real app, you'd send image data or URL)
             # For now, just print a confirmation
-            emit("quilt_update", {"status": "updated"}, broadcast=True)
+            # emit("quilt_update", {"status": "updated"}, broadcast=True)  # Disabled - requires Flask-SocketIO
+            print("Quilt updated - would emit to clients in full Flask setup")
 
     def _craft_patch_description(self, chat_message):
         prompt = f'Given the chat message: "{chat_message}". Craft a short, evocative description for a visual "patch" in a narrative quilt. Focus on imagery and mood. Max 20 words.'
