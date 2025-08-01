@@ -1,16 +1,22 @@
 import time
+
 from utils import record_and_transcribe_speech
-from src.lunar_tools_art import Manager
+
 
 class InteractiveStorytellingCanvas:
-    def __init__(self, lunar_tools_art_manager: LunarToolsArtManager, loop_delay=2, glif_id="clgh1vxtu0011mo081dplq3xs"):
+    def __init__(
+        self,
+        lunar_tools_art_manager: LunarToolsArtManager,
+        loop_delay=2,
+        glif_id="clgh1vxtu0011mo081dplq3xs",
+    ):
         self.lunar_tools_art_manager = lunar_tools_art_manager
         self.renderer = self.lunar_tools_art_manager.renderer
         self.speech2text = self.lunar_tools_art_manager.speech2text
         self.llm = self.lunar_tools_art_manager.gpt4
         self.glif_api = self.lunar_tools_art_manager.glif_api
         self.logger = self.lunar_tools_art_manager.logger
-        self.story = "" # For very long stories, consider implementing summarization to avoid GPT-4 context window limits.
+        self.story = ""  # For very long stories, consider implementing summarization to avoid GPT-4 context window limits.
         self.glif_id = glif_id  # Configurable Glif ID for story visualization
         self.loop_delay = loop_delay
 
@@ -26,7 +32,9 @@ class InteractiveStorytellingCanvas:
             self.story += " " + continuation
             return continuation
         except Exception as e:
-            self.logger.error(f"Error generating story continuation: {e}", exc_info=True)
+            self.logger.error(
+                f"Error generating story continuation: {e}", exc_info=True
+            )
             return None
 
     def visualize_story(self):
@@ -36,7 +44,9 @@ class InteractiveStorytellingCanvas:
             if "image" in result:
                 return result["image"]
             else:
-                self.logger.error("Failed to generate image:", result.get("error", "Unknown error"))
+                self.logger.error(
+                    "Failed to generate image:", result.get("error", "Unknown error")
+                )
                 return None
         except Exception as e:
             self.logger.error(f"Error visualizing story: {e}", exc_info=True)
@@ -49,7 +59,7 @@ class InteractiveStorytellingCanvas:
                 if user_input:
                     self.logger.info(f"You said: {user_input}")
                     continuation = self.generate_story_continuation(user_input)
-                    
+
                     if continuation:
                         self.logger.info(f"Story continuation: {continuation}")
                         image = self.visualize_story()
@@ -60,8 +70,9 @@ class InteractiveStorytellingCanvas:
             except Exception as e:
                 self.logger.error(f"An error occurred: {e}", exc_info=True)
                 self.logger.info("Continuing to next iteration...")
-            
+
             time.sleep(self.loop_delay)  # Short pause before next iteration
+
 
 if __name__ == "__main__":
     lunar_tools_art_manager = LunarToolsArtManager()

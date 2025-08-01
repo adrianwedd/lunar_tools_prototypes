@@ -1,0 +1,15 @@
+[bandit]
+# Configuration file for Bandit security linter
+# https://bandit.readthedocs.io/en/latest/config.html
+
+# Skip specific tests for artistic prototypes where random is used for visual effects
+skips = B311
+
+# Exclude test files and temporary directories
+exclude_dirs = tests,.temp,.output
+
+# Set confidence levels - only report high confidence issues
+confidence = high
+
+# Set severity levels - ignore low severity issues for art projects
+severity = medium,high

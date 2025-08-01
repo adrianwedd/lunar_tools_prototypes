@@ -86,7 +86,7 @@
 - task: Add CI/CD & quality gates
   goal: Automate lint, test, and build workflows.
   actions:
-    - Configure GitHub Actions with jobs: **lint** (`ruff`, `bandit`), **test** (`pytest --cov`), **build** (wheel, sdist).
+    - Configure GitHub Actions with jobs lint (ruff, bandit), test (pytest --cov), build (wheel, sdist).
     - Fail build on ruff errors or coverage < 80 %.
     - Publish wheels to TestPyPI on push to `main`.
   status: todo

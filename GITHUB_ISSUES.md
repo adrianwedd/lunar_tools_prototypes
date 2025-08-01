@@ -6,15 +6,15 @@ This document contains GitHub issues that should be created once the repository 
 
 ## Issue 1: 🔒 CRITICAL: Remove hardcoded API keys from temporary files
 
-**Priority:** Critical  
+**Priority:** Critical
 **Labels:** security, critical, bug
 
 ### Summary
 **CRITICAL SECURITY ISSUE**: Hardcoded API keys and secrets have been found in temporary files in the `.temp/` directory.
 
 ### Security Concerns Found
-- `interactive_storytelling0.10.py`: Contains hardcoded LangSmith API key `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`
-- `interactive_storytelling0.9.py`: Contains hardcoded API key `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`
+- `interactive_storytelling0.10.py`: Contains hardcoded LangSmith API key `lsv2_pt_[REDACTED]_[REDACTED]`
+- `interactive_storytelling0.9.py`: Contains hardcoded API key `lsv2_pt_[REDACTED]_[REDACTED]`
 - `interactive_storytelling0.8.py`: Contains hardcoded API key
 - Multiple temp files contain hardcoded authorization headers
 
@@ -34,7 +34,7 @@ This document contains GitHub issues that should be created once the repository 
 
 ## Issue 2: 🛠️ Add comprehensive development tooling and linting configuration
 
-**Priority:** High  
+**Priority:** High
 **Labels:** enhancement, tooling, development
 
 ### Summary
@@ -63,7 +63,7 @@ The project lacks comprehensive development tooling configuration for consistent
 
 ## Issue 3: 🧪 Improve test coverage and add integration tests
 
-**Priority:** Medium  
+**Priority:** Medium
 **Labels:** testing, quality
 
 ### Summary
@@ -101,7 +101,7 @@ Current test suite only includes basic smoke tests. Need comprehensive test cove
 
 ## Issue 4: 📚 Create comprehensive documentation and missing standard files
 
-**Priority:** Medium  
+**Priority:** Medium
 **Labels:** documentation, enhancement
 
 ### Summary
@@ -135,7 +135,7 @@ Several standard project files are missing or incomplete, affecting project prof
 
 ## Issue 5: 🐞 Fix syntax errors and code quality issues
 
-**Priority:** High  
+**Priority:** High
 **Labels:** bug, code-quality
 
 ### Summary
@@ -171,7 +171,7 @@ Multiple code quality issues found during analysis that need attention.
 
 ## Issue 6: 🔧 Fix CI/CD pipeline and improve project configuration
 
-**Priority:** Medium  
+**Priority:** Medium
 **Labels:** ci/cd, infrastructure
 
 ### Summary
@@ -204,7 +204,7 @@ The existing CI pipeline has some issues and could be improved for better reliab
 
 ## Issue 7: 🎨 Standardize prototype structure and add error handling
 
-**Priority:** Medium  
+**Priority:** Medium
 **Labels:** enhancement, architecture
 
 ### Summary
@@ -244,7 +244,7 @@ Prototypes have inconsistent structure and error handling patterns that should b
 
 ## Issue 8: 🔐 Implement security best practices and secret management
 
-**Priority:** High  
+**Priority:** High
 **Labels:** security, enhancement
 
 ### Summary

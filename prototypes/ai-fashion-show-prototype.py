@@ -1,8 +1,17 @@
 import time
+
 from src.lunar_tools_art import Manager
 
+
 class AIFashionShow:
-    def __init__(self, lunar_tools_art_manager: LunarToolsArtManager, renderer_width=1024, renderer_height=1792, display_duration=10, break_duration=60):
+    def __init__(
+        self,
+        lunar_tools_art_manager: Manager,
+        renderer_width=1024,
+        renderer_height=1792,
+        display_duration=10,
+        break_duration=60,
+    ):
         self.lunar_tools_art_manager = lunar_tools_art_manager
         self.dalle3 = self.lunar_tools_art_manager.dalle3
         self.renderer = self.lunar_tools_art_manager.renderer
@@ -15,7 +24,7 @@ class AIFashionShow:
             "eco-friendly sustainable",
             "retro 80s inspired",
             "avant-garde high fashion",
-            "minimalist Scandinavian"
+            "minimalist Scandinavian",
         ]
         self.outfits_per_theme = 5
         self.display_duration = display_duration
@@ -26,8 +35,19 @@ class AIFashionShow:
             prompt = f"Full body photo of a model on a runway wearing a {theme} outfit, fashion photography style"
             image, _ = self.dalle3.generate(prompt)
             return image
+        except ConnectionError as e:
+            self.logger.warning(
+                f"Network connection failed while generating outfit for {theme}: {e}"
+            )
+            return None
+        except ValueError as e:
+            self.logger.error(f"Invalid prompt or response for theme {theme}: {e}")
+            return None
         except Exception as e:
-            self.logger.error(f"Error generating outfit for theme {theme}: {e}", exc_info=True)
+            self.logger.error(
+                f"Unexpected error generating outfit for theme {theme}: {e}",
+                exc_info=True,
+            )
             return None
 
     def run_fashion_show(self):
@@ -39,14 +59,26 @@ class AIFashionShow:
                     outfit = self.generate_outfit(theme)
                     if outfit:
                         self.renderer.render(outfit)
+                    else:
+                        self.logger.warning(
+                            f"No outfit generated for theme {theme}, skipping display"
+                        )
+                        continue
                     time.sleep(self.display_duration)
+                except KeyboardInterrupt:
+                    self.logger.info("Fashion show interrupted by user")
+                    raise
                 except Exception as e:
-                    self.logger.error(f"Error displaying outfit for theme {theme}: {e}", exc_info=True)
+                    self.logger.error(
+                        f"Error displaying outfit for theme {theme}: {e}", exc_info=True
+                    )
+                    continue  # Skip this outfit but continue the show
 
     def run(self):
         while True:
             self.run_fashion_show()
             time.sleep(self.break_duration)
+
 
 if __name__ == "__main__":
     lunar_tools_art_manager = LunarToolsArtManager()
