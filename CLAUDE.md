@@ -67,6 +67,13 @@ pytest -v
 - PII filtering for logs to prevent API key leakage
 - Supports nested configuration via double underscores in env vars (e.g., `LLM__PROVIDER=ollama`)
 
+**Prototype Base Classes (`src/lunar_tools_art/prototype_base.py`)**
+
+- **PrototypeBase**: Core functionality for all prototypes with exception handling, resource management, and graceful shutdown
+- **InteractivePrototype**: Extends PrototypeBase with speech-to-text integration and user interaction helpers
+- **AIPrototype**: Extends PrototypeBase with LLM integration and image generation utilities
+- Provides standardized patterns for setup, update loops, and cleanup
+
 **CLI Entry Point (`lunar_tools_demo.py`)**
 
 - Auto-discovers all prototype classes in `prototypes/` directory
@@ -104,11 +111,18 @@ The system uses `settings.toml` for configuration:
 
 **Creating New Prototypes:**
 
+**Option 1: Using Base Classes (Recommended)**
 1. Create new file in `prototypes/` following naming convention
-2. Create class with CamelCase name matching filename
-3. Accept `LunarToolsArtManager` in constructor
-4. Implement `run()` method with main loop and keyboard exit handling
+2. Import appropriate base class: `PrototypeBase`, `InteractivePrototype`, or `AIPrototype`
+3. Inherit from base class and implement required methods: `setup()`, `update()`, `cleanup()`
+4. Use standardized configuration and error handling patterns
 5. Add smoke test in `tests/test_lunar_tools_art.py`
+
+**Option 2: Manual Implementation (Legacy)**
+1. Create class with CamelCase name matching filename
+2. Accept `LunarToolsArtManager` in constructor
+3. Implement `run()` method with main loop and keyboard exit handling
+4. Handle exceptions and resource cleanup manually
 
 **Testing Prototypes:**
 
@@ -143,7 +157,7 @@ The system uses `settings.toml` for configuration:
 1. Install pre-commit hooks: `pre-commit install`
 2. Run security scan: `bandit -r src/ prototypes/`
 3. Run tests: `pytest -v`
-4. Check for secrets: `detect-secrets scan --baseline .secrets.baseline`
+4. Check for secrets: `detect-secrets scan --baseline .secrets.baseline`  # pragma: allowlist secret
 
 ## Recent Security Improvements (August 2025)
 
