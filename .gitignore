@@ -27,3 +27,24 @@ logs/
 *.log
 frames/
 __MACOSX/
+
+# Virtual environments
+env/
+venv/
+.venv/
+
+# Audio files
+*.wav
+*.mp3
+*.m4a
+*.flac
+
+# Temporary files
+temp_*.py
+temp_*.wav
+entity_response.wav
+temp_recording.wav
+
+# Runtime generated content
+generated_images/
+output_audio/
