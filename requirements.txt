@@ -3,7 +3,11 @@
 # by the following command:
 #
 #    pip-compile --output-file=requirements.txt pyproject.toml
+pytest==8.3.2
+responses==0.25.3
 #
+anthropic>=0.40.0
+    # via lunar_tools_art (audio mirror)
 annotated-types==0.7.0
     # via pydantic
 anyio==4.9.0
@@ -64,6 +68,8 @@ numpy==2.2.5
     #   soxr
 ollama==0.5.1
     # via lunar_tools_art (pyproject.toml)
+opencv-python>=4.9.0
+    # via lunar_tools_art (emotion detection)
 opentelemetry-api==1.34.1
     # via
     #   lunar_tools_art (pyproject.toml)
