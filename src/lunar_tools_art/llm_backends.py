@@ -16,6 +16,13 @@ import requests
 log = logging.getLogger(__name__)
 
 
+LLM_TIMEOUT = 30  # seconds — keep short for real-time installations
+
+
+class MissingCredentialError(ValueError):
+    """Raised when a required API key is not set."""
+
+
 class LLMBackend(ABC):
     @abstractmethod
     def generate(self, prompt: str, system_prompt: str | None = None) -> str | None: ...
@@ -34,7 +41,7 @@ class OllamaLocalBackend(LLMBackend):
             if system_prompt:
                 data["system"] = system_prompt
             resp = requests.post(
-                f"{self.base_url}/api/generate", json=data, timeout=120
+                f"{self.base_url}/api/generate", json=data, timeout=LLM_TIMEOUT
             )
             resp.raise_for_status()
             return resp.json().get("response", "")
@@ -52,7 +59,12 @@ class ClaudeBackend(LLMBackend):
         import anthropic
 
         self.model = model
-        self._client = anthropic.Anthropic(api_key=os.environ.get(api_key_env))
+        api_key = os.environ.get(api_key_env)
+        if not api_key:
+            raise MissingCredentialError(
+                f"Claude requires {api_key_env} environment variable to be set"
+            )
+        self._client = anthropic.Anthropic(api_key=api_key)
 
     def generate(self, prompt: str, system_prompt: str | None = None) -> str | None:
         try:
@@ -78,6 +90,10 @@ class OllamaCloudBackend(LLMBackend):
     ):
         self.model = model
         self.api_key = os.environ.get(api_key_env, "")
+        if not self.api_key:
+            raise MissingCredentialError(
+                f"Ollama Cloud requires {api_key_env} environment variable to be set"
+            )
         self.base_url = "https://api.ollama.com/v1"
 
     def generate(self, prompt: str, system_prompt: str | None = None) -> str | None:
@@ -90,7 +106,7 @@ class OllamaCloudBackend(LLMBackend):
                 f"{self.base_url}/chat/completions",
                 headers={"Authorization": f"Bearer {self.api_key}"},
                 json={"model": self.model, "messages": messages},
-                timeout=120,
+                timeout=LLM_TIMEOUT,
             )
             resp.raise_for_status()
             return resp.json()["choices"][0]["message"]["content"]
@@ -109,6 +125,10 @@ class OpenRouterBackend(LLMBackend):
     ):
         self.model = model
         self.api_key = os.environ.get(api_key_env, "")
+        if not self.api_key:
+            raise MissingCredentialError(
+                f"OpenRouter requires {api_key_env} environment variable to be set"
+            )
         self.base_url = "https://openrouter.ai/api/v1"
 
     def generate(self, prompt: str, system_prompt: str | None = None) -> str | None:
@@ -121,7 +141,7 @@ class OpenRouterBackend(LLMBackend):
                 f"{self.base_url}/chat/completions",
                 headers={"Authorization": f"Bearer {self.api_key}"},
                 json={"model": self.model, "messages": messages},
-                timeout=120,
+                timeout=LLM_TIMEOUT,
             )
             resp.raise_for_status()
             return resp.json()["choices"][0]["message"]["content"]

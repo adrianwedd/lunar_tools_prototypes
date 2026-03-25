@@ -8,6 +8,7 @@ import toml
 from src.lunar_tools_art.llm_backends import (
     ClaudeBackend,
     LLMBackend,
+    MissingCredentialError,
     OllamaCloudBackend,
     OllamaLocalBackend,
     OpenRouterBackend,
@@ -176,6 +177,27 @@ api_key_env = "ANTHROPIC_API_KEY"  # pragma: allowlist secret
     backend = create_backend(config["llm"])
     assert isinstance(backend, OllamaLocalBackend)
     assert backend.model == "llama3.1:8b"
+
+
+def test_claude_raises_on_missing_key():
+    with patch.dict(os.environ, {}, clear=True):
+        os.environ.pop("ANTHROPIC_API_KEY", None)  # pragma: allowlist secret
+        with pytest.raises(MissingCredentialError):
+            ClaudeBackend()
+
+
+def test_ollama_cloud_raises_on_missing_key():
+    with patch.dict(os.environ, {}, clear=True):
+        os.environ.pop("OLLAMA_CLOUD_API_KEY", None)  # pragma: allowlist secret
+        with pytest.raises(MissingCredentialError):
+            OllamaCloudBackend()
+
+
+def test_openrouter_raises_on_missing_key():
+    with patch.dict(os.environ, {}, clear=True):
+        os.environ.pop("OPENROUTER_API_KEY", None)  # pragma: allowlist secret
+        with pytest.raises(MissingCredentialError):
+            OpenRouterBackend()
 
 
 def test_manager_has_llm_backend():

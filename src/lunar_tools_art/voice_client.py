@@ -27,7 +27,7 @@ class CloneResult:
 
 class VoiceClient:
     def __init__(
-        self, server_url: str = "http://localhost:7860", timeout: float = 120.0
+        self, server_url: str = "http://localhost:7860", timeout: float = 30.0
     ):
         self.server_url = server_url.rstrip("/")
         self.timeout = timeout
@@ -35,6 +35,9 @@ class VoiceClient:
     def health(self) -> dict | None:
         try:
             resp = httpx.get(f"{self.server_url}/health", timeout=5.0)
+            if resp.status_code != 200:
+                log.error(f"Afterwords health returned {resp.status_code}")
+                return None
             return resp.json()
         except Exception as e:
             log.error(f"Afterwords health check failed: {e}")

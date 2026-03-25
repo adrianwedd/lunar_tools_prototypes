@@ -96,6 +96,14 @@ def test_health_returns_none_on_error():
         assert result is None
 
 
+def test_health_returns_none_on_non_200():
+    client = VoiceClient()
+    with patch("httpx.get") as mock_get:
+        mock_get.return_value = MagicMock(status_code=503)
+        result = client.health()
+        assert result is None
+
+
 def test_synthesize_returns_none_on_non_200():
     client = VoiceClient()
     with patch("httpx.post") as mock_post:
