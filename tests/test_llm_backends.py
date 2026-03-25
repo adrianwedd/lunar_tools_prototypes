@@ -3,6 +3,7 @@ import os
 from unittest.mock import MagicMock, patch
 
 import pytest
+import toml
 
 from src.lunar_tools_art.llm_backends import (
     ClaudeBackend,
@@ -155,3 +156,33 @@ def test_create_backend_all_providers():
             config = {"provider": provider_name}
             backend = create_backend(config)
             assert isinstance(backend, expected_class), f"Failed for {provider_name}"
+
+
+def test_create_backend_from_toml_config():
+    """Verify create_backend works with the shape of config from settings.toml."""
+    toml_str = """
+[llm]
+provider = "ollama"
+
+[llm.ollama]
+model = "llama3.1:8b"
+base_url = "http://localhost:11434"
+
+[llm.claude]
+model = "claude-sonnet-4-20250514"
+api_key_env = "ANTHROPIC_API_KEY"  # pragma: allowlist secret
+"""
+    config = toml.loads(toml_str)
+    backend = create_backend(config["llm"])
+    assert isinstance(backend, OllamaLocalBackend)
+    assert backend.model == "llama3.1:8b"
+
+
+def test_manager_has_llm_backend():
+    """Verify the Manager initializes an LLM backend from config."""
+    from src.lunar_tools_art.manager import LunarToolsArtManager
+
+    with patch("src.lunar_tools_art.manager.create_backend") as mock_create:
+        mock_create.return_value = OllamaLocalBackend(model="test")
+        manager = LunarToolsArtManager()
+        assert hasattr(manager, "llm_backend")

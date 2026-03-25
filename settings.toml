@@ -1,7 +1,35 @@
 [llm]
-provider = "gpt4"
-
-[llm.gpt4]
+provider = "ollama"
 
 [llm.ollama]
-model = "deepseek-r1:1.5b"
+model = "llama3.1:8b"
+base_url = "http://localhost:11434"
+
+[llm.claude]
+model = "claude-sonnet-4-20250514"
+api_key_env = "ANTHROPIC_API_KEY"  # pragma: allowlist secret
+
+[llm.ollama_cloud]
+model = "llama3.1:70b"
+api_key_env = "OLLAMA_CLOUD_API_KEY"  # pragma: allowlist secret
+
+[llm.openrouter]
+model = "meta-llama/llama-3.1-8b-instruct:free"
+api_key_env = "OPENROUTER_API_KEY"  # pragma: allowlist secret
+
+[afterwords]
+server_url = "http://localhost:7860"
+default_voice = "galadriel"
+
+[emotion]
+model = "auto"
+confidence_threshold = 0.5
+fallback = "haar-cascade"
+
+[whisper]
+backend = "faster-whisper"
+model = "base.en"
+
+[privacy]
+mode = "local-only"
+auto_delete_session = true
