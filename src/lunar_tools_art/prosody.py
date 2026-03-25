@@ -72,33 +72,36 @@ class ProsodyAnalyzer:
             spectral_centroid = 0.0
 
         # Pause detection (energy-based)
-        frame_length = int(0.025 * sr)
-        hop_length = int(0.010 * sr)
-        rms_frames = librosa.feature.rms(
-            y=audio, frame_length=frame_length, hop_length=hop_length
-        )[0]
-        silence_threshold = 0.02
         pauses: list[PauseEvent] = []
-        in_pause = False
-        pause_start = 0.0
-        for i, rms_val in enumerate(rms_frames):
-            t = i * hop_length / sr
-            if rms_val < silence_threshold:
-                if not in_pause:
-                    in_pause = True
-                    pause_start = t
-            else:
-                if in_pause:
-                    dur = t - pause_start
-                    if dur > 0.3:  # only count pauses > 300ms
-                        pauses.append(PauseEvent(at=pause_start, duration=dur))
-                    in_pause = False
-        # Flush trailing pause (audio ends during silence)
-        if in_pause:
-            end_t = len(rms_frames) * hop_length / sr
-            dur = end_t - pause_start
-            if dur > 0.3:
-                pauses.append(PauseEvent(at=pause_start, duration=dur))
+        try:
+            frame_length = int(0.025 * sr)
+            hop_length = int(0.010 * sr)
+            rms_frames = librosa.feature.rms(
+                y=audio, frame_length=frame_length, hop_length=hop_length
+            )[0]
+            silence_threshold = 0.02
+            in_pause = False
+            pause_start = 0.0
+            for i, rms_val in enumerate(rms_frames):
+                t = i * hop_length / sr
+                if rms_val < silence_threshold:
+                    if not in_pause:
+                        in_pause = True
+                        pause_start = t
+                else:
+                    if in_pause:
+                        dur = t - pause_start
+                        if dur > 0.3:  # only count pauses > 300ms
+                            pauses.append(PauseEvent(at=pause_start, duration=dur))
+                        in_pause = False
+            # Flush trailing pause (audio ends during silence)
+            if in_pause:
+                end_t = len(rms_frames) * hop_length / sr
+                dur = end_t - pause_start
+                if dur > 0.3:
+                    pauses.append(PauseEvent(at=pause_start, duration=dur))
+        except Exception as e:
+            log.warning(f"Pause detection failed: {e}")
 
         # Emotion tag from prosody heuristics
         emotion_tag = _infer_emotion(energy_rms, pitch_mean, pitch_variance)
