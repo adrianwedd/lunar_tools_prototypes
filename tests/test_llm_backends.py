@@ -7,7 +7,9 @@ import pytest
 from src.lunar_tools_art.llm_backends import (
     ClaudeBackend,
     LLMBackend,
+    OllamaCloudBackend,
     OllamaLocalBackend,
+    OpenRouterBackend,
     create_backend,
 )
 
@@ -102,3 +104,54 @@ def test_create_backend_claude():
         }
         backend = create_backend(config)
         assert isinstance(backend, ClaudeBackend)
+
+
+def test_ollama_cloud_generate():
+    with patch.dict(
+        os.environ,
+        {"OLLAMA_CLOUD_API_KEY": "test-key"},  # pragma: allowlist secret
+    ):
+        backend = OllamaCloudBackend(model="llama3.1:70b")
+    with patch("requests.post") as mock_post:
+        mock_post.return_value = MagicMock(
+            status_code=200,
+            json=lambda: {"choices": [{"message": {"content": "Cloud response"}}]},
+        )
+        mock_post.return_value.raise_for_status = MagicMock()
+        result = backend.generate("hello")
+        assert result == "Cloud response"
+
+
+def test_openrouter_generate():
+    with patch.dict(
+        os.environ,
+        {"OPENROUTER_API_KEY": "test-key"},  # pragma: allowlist secret
+    ):
+        backend = OpenRouterBackend(model="meta-llama/llama-3.1-8b-instruct:free")
+    with patch("requests.post") as mock_post:
+        mock_post.return_value = MagicMock(
+            status_code=200,
+            json=lambda: {"choices": [{"message": {"content": "Router response"}}]},
+        )
+        mock_post.return_value.raise_for_status = MagicMock()
+        result = backend.generate("hello")
+        assert result == "Router response"
+
+
+def test_create_backend_all_providers():
+    providers = {
+        "ollama": OllamaLocalBackend,
+        "ollama-cloud": OllamaCloudBackend,
+        "openrouter": OpenRouterBackend,
+    }
+    for provider_name, expected_class in providers.items():
+        with patch.dict(
+            os.environ,
+            {
+                "OLLAMA_CLOUD_API_KEY": "k",
+                "OPENROUTER_API_KEY": "k",
+            },  # pragma: allowlist secret
+        ):
+            config = {"provider": provider_name}
+            backend = create_backend(config)
+            assert isinstance(backend, expected_class), f"Failed for {provider_name}"

@@ -70,6 +70,66 @@ class ClaudeBackend(LLMBackend):
             return None
 
 
+class OllamaCloudBackend(LLMBackend):
+    """Ollama Cloud — OpenAI-compatible chat API with generous free tier."""
+
+    def __init__(
+        self, model: str = "llama3.1:70b", api_key_env: str = "OLLAMA_CLOUD_API_KEY"
+    ):
+        self.model = model
+        self.api_key = os.environ.get(api_key_env, "")
+        self.base_url = "https://api.ollama.com/v1"
+
+    def generate(self, prompt: str, system_prompt: str | None = None) -> str | None:
+        try:
+            messages = []
+            if system_prompt:
+                messages.append({"role": "system", "content": system_prompt})
+            messages.append({"role": "user", "content": prompt})
+            resp = requests.post(
+                f"{self.base_url}/chat/completions",
+                headers={"Authorization": f"Bearer {self.api_key}"},
+                json={"model": self.model, "messages": messages},
+                timeout=120,
+            )
+            resp.raise_for_status()
+            return resp.json()["choices"][0]["message"]["content"]
+        except Exception as e:
+            log.error(f"Ollama Cloud generate failed: {e}")
+            return None
+
+
+class OpenRouterBackend(LLMBackend):
+    """OpenRouter — free-tier access to many models via OpenAI-compatible API."""
+
+    def __init__(
+        self,
+        model: str = "meta-llama/llama-3.1-8b-instruct:free",
+        api_key_env: str = "OPENROUTER_API_KEY",
+    ):
+        self.model = model
+        self.api_key = os.environ.get(api_key_env, "")
+        self.base_url = "https://openrouter.ai/api/v1"
+
+    def generate(self, prompt: str, system_prompt: str | None = None) -> str | None:
+        try:
+            messages = []
+            if system_prompt:
+                messages.append({"role": "system", "content": system_prompt})
+            messages.append({"role": "user", "content": prompt})
+            resp = requests.post(
+                f"{self.base_url}/chat/completions",
+                headers={"Authorization": f"Bearer {self.api_key}"},
+                json={"model": self.model, "messages": messages},
+                timeout=120,
+            )
+            resp.raise_for_status()
+            return resp.json()["choices"][0]["message"]["content"]
+        except Exception as e:
+            log.error(f"OpenRouter generate failed: {e}")
+            return None
+
+
 def create_backend(config: dict) -> LLMBackend:
     """Create an LLM backend from a config dict (the [llm] section of settings.toml)."""
     provider = config.get("provider", "ollama")
@@ -84,5 +144,17 @@ def create_backend(config: dict) -> LLMBackend:
         return ClaudeBackend(
             model=claude_cfg.get("model", "claude-sonnet-4-20250514"),
             api_key_env=claude_cfg.get("api_key_env", "ANTHROPIC_API_KEY"),
+        )
+    if provider == "ollama-cloud":
+        cloud_cfg = config.get("ollama_cloud", {})
+        return OllamaCloudBackend(
+            model=cloud_cfg.get("model", "llama3.1:70b"),
+            api_key_env=cloud_cfg.get("api_key_env", "OLLAMA_CLOUD_API_KEY"),
+        )
+    if provider == "openrouter":
+        or_cfg = config.get("openrouter", {})
+        return OpenRouterBackend(
+            model=or_cfg.get("model", "meta-llama/llama-3.1-8b-instruct:free"),
+            api_key_env=or_cfg.get("api_key_env", "OPENROUTER_API_KEY"),
         )
     raise ValueError(f"Unknown LLM provider: {provider}")
