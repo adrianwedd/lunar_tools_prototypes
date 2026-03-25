@@ -4,6 +4,9 @@ import os
 from langsmith import traceable
 
 from .config import config
+from .emotion import EmotionDetector
+from .llm_backends import create_backend
+from .prosody import ProsodyAnalyzer
 from .tools import (
     GPT4,
     SDXL_LCM,
@@ -21,6 +24,7 @@ from .tools import (
     WebCam,
     ZMQPairEndpoint,
 )
+from .voice_client import VoiceClient
 
 
 class LunarToolsArtManager:
@@ -94,6 +98,38 @@ class LunarToolsArtManager:
         self.midi_input = self._traceable_tool(
             MidiInput, "MidiInput", methods_to_trace=["get_latest_message"]
         )
+
+        # New infrastructure components
+        try:
+            llm_config = config.get("llm", {})
+            self.llm_backend = create_backend(llm_config) if llm_config else None
+        except Exception as e:
+            self.logger.error(f"Failed to initialize LLM backend: {e}")
+            self.llm_backend = None
+
+        try:
+            self.emotion_detector = EmotionDetector()
+        except Exception as e:
+            self.logger.error(f"Failed to initialize EmotionDetector: {e}")
+            self.emotion_detector = None
+
+        try:
+            self.prosody_analyzer = ProsodyAnalyzer()
+        except Exception as e:
+            self.logger.error(f"Failed to initialize ProsodyAnalyzer: {e}")
+            self.prosody_analyzer = None
+
+        try:
+            afterwords_config = config.get("afterwords", {})
+            server_url = (
+                afterwords_config.get("server_url", "http://localhost:7860")
+                if afterwords_config
+                else "http://localhost:7860"
+            )
+            self.voice_client = VoiceClient(server_url=server_url)
+        except Exception as e:
+            self.logger.error(f"Failed to initialize VoiceClient: {e}")
+            self.voice_client = None
 
     def _setup_logging(self):
         log_level_str = config.get("logging.level", "INFO")
