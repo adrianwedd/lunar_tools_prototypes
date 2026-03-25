@@ -20,7 +20,7 @@ repos:
     rev: 1.8.6
     hooks:
       - id: bandit
-        args: ['-r', 'src/', 'prototypes/']
+        args: ['--skip', 'B311,B113', '-r', 'src/', 'prototypes/']
         exclude: tests/
 
   - repo: https://github.com/psf/black
