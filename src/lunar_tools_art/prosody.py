@@ -7,10 +7,13 @@ from prosody features.
 """
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass, field
 
 import librosa
 import numpy as np
+
+log = logging.getLogger(__name__)
 
 
 @dataclass
@@ -32,6 +35,12 @@ class ProsodyResult:
 
 class ProsodyAnalyzer:
     def analyze(self, audio: np.ndarray, sr: int) -> ProsodyResult:
+        # Guard: empty or invalid audio
+        if audio.size == 0 or sr <= 0:
+            return ProsodyResult(
+                pitch_mean=0.0, pitch_variance=0.0, energy_rms=0.0, pace_wps=0.0
+            )
+
         # Ensure float32 mono
         if audio.ndim > 1:
             audio = audio.mean(axis=1)
@@ -40,19 +49,27 @@ class ProsodyAnalyzer:
         # Energy
         energy_rms = float(np.sqrt(np.mean(audio**2)))
 
-        # Pitch (F0) via pyin
-        f0, voiced_flag, _ = librosa.pyin(audio, fmin=80, fmax=600, sr=sr)
-        voiced_f0 = f0[voiced_flag] if voiced_flag is not None else f0[~np.isnan(f0)]
-        if len(voiced_f0) == 0:
-            pitch_mean = 0.0
-            pitch_variance = 0.0
-        else:
-            pitch_mean = float(np.nanmean(voiced_f0))
-            pitch_variance = float(np.nanstd(voiced_f0))
+        # Pitch (F0) via pyin — wrapped for robustness across numba/librosa versions
+        pitch_mean = 0.0
+        pitch_variance = 0.0
+        try:
+            f0, voiced_flag, _ = librosa.pyin(audio, fmin=80, fmax=600, sr=sr)
+            voiced_f0 = (
+                f0[voiced_flag] if voiced_flag is not None else f0[~np.isnan(f0)]
+            )
+            if len(voiced_f0) > 0:
+                pitch_mean = float(np.nanmean(voiced_f0))
+                pitch_variance = float(np.nanstd(voiced_f0))
+        except Exception as e:
+            log.warning(f"Pitch extraction failed (degrading gracefully): {e}")
 
         # Spectral centroid
-        cent = librosa.feature.spectral_centroid(y=audio, sr=sr)
-        spectral_centroid = float(np.mean(cent)) if cent.size > 0 else 0.0
+        try:
+            cent = librosa.feature.spectral_centroid(y=audio, sr=sr)
+            spectral_centroid = float(np.mean(cent)) if cent.size > 0 else 0.0
+        except Exception as e:
+            log.warning(f"Spectral centroid failed: {e}")
+            spectral_centroid = 0.0
 
         # Pause detection (energy-based)
         frame_length = int(0.025 * sr)
@@ -76,6 +93,12 @@ class ProsodyAnalyzer:
                     if dur > 0.3:  # only count pauses > 300ms
                         pauses.append(PauseEvent(at=pause_start, duration=dur))
                     in_pause = False
+        # Flush trailing pause (audio ends during silence)
+        if in_pause:
+            end_t = len(rms_frames) * hop_length / sr
+            dur = end_t - pause_start
+            if dur > 0.3:
+                pauses.append(PauseEvent(at=pause_start, duration=dur))
 
         # Emotion tag from prosody heuristics
         emotion_tag = _infer_emotion(energy_rms, pitch_mean, pitch_variance)
