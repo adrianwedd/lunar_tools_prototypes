@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OG Image — Lunar Tools Art Prototypes</title>
+  <!--
+    Render this page at 1200x630 and screenshot to produce og-image.png.
+    Suggested tool: `shot-scraper og-image.html -w 1200 -h 630 -o og-image.png`
+    or: `puppeteer` / `playwright` screenshot at that viewport.
+  -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Plus+Jakarta+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      width: 1200px;
+      height: 630px;
+      background: #0a0a10;
+      color: #e4e4f0;
+      font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+      font-weight: 300;
+      -webkit-font-smoothing: antialiased;
+      overflow: hidden;
+      position: relative;
+    }
+
+    canvas {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      opacity: 0.55;
+    }
+
+    .content {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      height: 100%;
+      padding: 64px 80px;
+    }
+
+    .eyebrow {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 14px;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.22em;
+      color: #9b8ec4;
+      margin-bottom: 28px;
+    }
+
+    h1 {
+      font-family: 'Instrument Serif', Georgia, serif;
+      font-size: 80px;
+      font-weight: 400;
+      line-height: 1.0;
+      letter-spacing: -0.025em;
+      color: #e4e4f0;
+      margin-bottom: 24px;
+    }
+
+    h1 em {
+      font-style: italic;
+      color: #9b8ec4;
+    }
+
+    .tagline {
+      font-size: 22px;
+      color: #9494a8;
+      font-weight: 300;
+      max-width: 560px;
+      line-height: 1.55;
+      margin-bottom: 48px;
+    }
+
+    .stats {
+      display: flex;
+      gap: 48px;
+      padding-top: 32px;
+      border-top: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .stat-value {
+      font-family: 'Instrument Serif', Georgia, serif;
+      font-size: 32px;
+      color: #e4e4f0;
+      line-height: 1;
+    }
+
+    .stat-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      font-weight: 400;
+      color: #64647a;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      margin-top: 6px;
+    }
+
+    .right-panel {
+      position: absolute;
+      right: 80px;
+      top: 50%;
+      transform: translateY(-50%);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      opacity: 0.7;
+    }
+
+    .mini-card {
+      background: #181824;
+      border: 1px solid rgba(255,255,255,0.06);
+      border-left: 3px solid #9b8ec4;
+      border-radius: 8px;
+      padding: 12px 16px;
+      width: 240px;
+    }
+
+    .mini-card-name {
+      font-family: 'Instrument Serif', Georgia, serif;
+      font-size: 15px;
+      color: #e4e4f0;
+      margin-bottom: 3px;
+    }
+
+    .mini-card-cat {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 0.15em;
+      color: #9b8ec4;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="ogCanvas"></canvas>
+
+  <div class="content">
+    <div class="eyebrow">Lunar Tools &middot; Art Prototypes</div>
+    <h1>Installations<br>that <em>look back</em></h1>
+    <p class="tagline">29 interactive AI art installations. Voice cloning, emotion detection, generative visuals.</p>
+    <div class="stats">
+      <div>
+        <div class="stat-value">29</div>
+        <div class="stat-label">Installations</div>
+      </div>
+      <div>
+        <div class="stat-value">Apple M</div>
+        <div class="stat-label">Silicon</div>
+      </div>
+      <div>
+        <div class="stat-value">4</div>
+        <div class="stat-label">Categories</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="right-panel">
+    <div class="mini-card">
+      <div class="mini-card-name">Audio Mirror</div>
+      <div class="mini-card-cat">Echoes</div>
+    </div>
+    <div class="mini-card">
+      <div class="mini-card-name">Mirror of Truth</div>
+      <div class="mini-card-cat">Reflections</div>
+    </div>
+    <div class="mini-card">
+      <div class="mini-card-name">Cosmic Soundscape</div>
+      <div class="mini-card-cat">Echoes</div>
+    </div>
+    <div class="mini-card">
+      <div class="mini-card-name">Evolving Cosmic Mural</div>
+      <div class="mini-card-cat">Visions</div>
+    </div>
+    <div class="mini-card">
+      <div class="mini-card-name">Generative Poetry Mosaic</div>
+      <div class="mini-card-cat">Whispers</div>
+    </div>
+  </div>
+
+  <script>
+  (function() {
+    const canvas = document.getElementById('ogCanvas');
+    const ctx = canvas.getContext('2d');
+    const W = 1200, H = 630;
+    canvas.width = W;
+    canvas.height = H;
+
+    const FRAG_COUNT = 32;
+
+    function rnd(a, b) { return a + Math.random() * (b - a); }
+
+    const frags = Array.from({ length: FRAG_COUNT }, (_, i) => {
+      const angle = (i / FRAG_COUNT) * Math.PI * 2;
+      const r = 0.3 + rnd(0, 0.25);
+      const cx = 0.4 + Math.cos(angle) * r;
+      const cy = 0.5 + Math.sin(angle) * r * 0.65;
+      const size = rnd(50, 160);
+      const rot = rnd(0, Math.PI * 2);
+      const alpha = rnd(0.04, 0.12);
+      const pts = [
+        { x: 0, y: -size },
+        { x: size * Math.cos(Math.PI * 0.4), y: size * Math.sin(Math.PI * 0.4) },
+        { x: -size * Math.cos(Math.PI * 0.4), y: size * Math.sin(Math.PI * 0.4) },
+      ];
+      return { cx, cy, rot, alpha, pts };
+    });
+
+    // Draw static frame (no animation needed for OG image)
+    ctx.clearRect(0, 0, W, H);
+
+    frags.forEach(frag => {
+      const px = frag.cx * W;
+      const py = frag.cy * H;
+
+      ctx.save();
+      ctx.translate(px, py);
+      ctx.rotate(frag.rot);
+
+      ctx.beginPath();
+      ctx.moveTo(frag.pts[0].x, frag.pts[0].y);
+      frag.pts.slice(1).forEach(p => ctx.lineTo(p.x, p.y));
+      ctx.closePath();
+
+      ctx.strokeStyle = `rgba(155, 142, 196, ${frag.alpha})`;
+      ctx.lineWidth = 1;
+      ctx.stroke();
+
+      ctx.fillStyle = `rgba(155, 142, 196, ${frag.alpha * 0.12})`;
+      ctx.fill();
+
+      ctx.restore();
+    });
+  })();
+  </script>
+</body>
+</html>

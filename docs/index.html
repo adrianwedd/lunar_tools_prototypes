@@ -1,0 +1,1127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lunar Tools Art Prototypes — Interactive AI Installations</title>
+  <meta name="description" content="29 interactive art installations exploring the edge where AI becomes a mirror. Voice cloning, emotion detection, generative visuals. Built on Apple Silicon with MLX.">
+  <meta property="og:title" content="Lunar Tools Art Prototypes">
+  <meta property="og:description" content="Interactive installations where AI observes, reflects, and reveals.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://adrianwedd.github.io/lunar_tools_prototypes/">
+  <meta property="og:image" content="https://adrianwedd.github.io/lunar_tools_prototypes/og-image.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Lunar Tools Art Prototypes — 29 interactive AI art installations">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Lunar Tools Art Prototypes">
+  <meta name="twitter:description" content="Interactive installations where AI observes, reflects, and reveals.">
+  <meta name="twitter:image" content="https://adrianwedd.github.io/lunar_tools_prototypes/og-image.png">
+  <link rel="canonical" href="https://adrianwedd.github.io/lunar_tools_prototypes/">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Plus+Jakarta+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0a0a10;
+      --bg-elevated: #12121c;
+      --bg-card: #181824;
+      --bg-card-hover: #1e1e2e;
+      --bg-featured: linear-gradient(180deg, #0f0f1a 0%, #0a0a10 100%);
+      --text: #e4e4f0;
+      --text-secondary: #9494a8;
+      --text-dim: #64647a;
+      --accent: #9b8ec4;
+      --accent-glow: rgba(155, 142, 196, 0.15);
+      --accent-bright: #b0a4d4;
+      --border: rgba(255, 255, 255, 0.06);
+      --border-hover: rgba(155, 142, 196, 0.25);
+      --display: 'Instrument Serif', Georgia, serif;
+      --body: 'Plus Jakarta Sans', system-ui, sans-serif;
+      --mono: 'JetBrains Mono', 'SF Mono', monospace;
+      --max-w: 900px;
+      --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: var(--body);
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.75;
+      font-size: 1.0625rem;
+      font-weight: 300;
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+    }
+
+    ::selection { background: var(--accent-glow); color: var(--accent-bright); }
+    :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+    .container { max-width: var(--max-w); margin: 0 auto; padding: 0 1.5rem; }
+
+    /* ── Reveal animation ────────────────────── */
+    .reveal {
+      opacity: 0;
+      transform: translateY(28px);
+      transition: opacity 0.8s var(--ease-out-expo), transform 0.8s var(--ease-out-expo);
+    }
+    .reveal.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* ── Hero ──────────────────────────────── */
+    .hero {
+      position: relative;
+      padding: 6rem 0 5rem;
+      min-height: 90vh;
+      display: flex;
+      align-items: center;
+      overflow: hidden;
+    }
+    #heroCanvas {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      opacity: 0.6;
+      pointer-events: none;
+    }
+    .hero-content {
+      position: relative;
+      z-index: 1;
+    }
+    .hero-eyebrow {
+      font-family: var(--mono);
+      font-size: 0.7rem;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.2em;
+      color: var(--accent);
+      margin-bottom: 1.5rem;
+      opacity: 0;
+      animation: heroFade 0.8s 0.2s var(--ease-out-expo) forwards;
+    }
+    .hero h1 {
+      font-family: var(--display);
+      font-size: clamp(2.6rem, 7vw, 4.5rem);
+      font-weight: 400;
+      color: var(--text);
+      line-height: 1.1;
+      letter-spacing: -0.02em;
+      margin-bottom: 1.5rem;
+      opacity: 0;
+      animation: heroFade 0.8s 0.35s var(--ease-out-expo) forwards;
+    }
+    .hero h1 em {
+      font-style: italic;
+      color: var(--accent);
+    }
+    .hero-statement {
+      font-family: var(--display);
+      font-style: italic;
+      font-size: 1.1rem;
+      color: var(--text-secondary);
+      max-width: 560px;
+      margin-bottom: 2rem;
+      line-height: 1.7;
+      opacity: 0;
+      animation: heroFade 0.8s 0.5s var(--ease-out-expo) forwards;
+    }
+    .hero-actions {
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+      flex-wrap: wrap;
+      opacity: 0;
+      animation: heroFade 0.8s 0.65s var(--ease-out-expo) forwards;
+    }
+    .btn-primary {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-family: var(--mono);
+      font-size: 0.8rem;
+      font-weight: 500;
+      background: var(--accent);
+      color: var(--bg);
+      border: none;
+      padding: 0.7rem 1.6rem;
+      border-radius: 6px;
+      text-decoration: none;
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .btn-primary:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 20px var(--accent-glow);
+    }
+    .btn-ghost {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-family: var(--mono);
+      font-size: 0.8rem;
+      font-weight: 500;
+      background: transparent;
+      color: var(--text-secondary);
+      border: 1px solid var(--border);
+      padding: 0.65rem 1.4rem;
+      border-radius: 6px;
+      text-decoration: none;
+      transition: color 0.2s, border-color 0.2s;
+    }
+    .btn-ghost:hover { color: var(--text); border-color: var(--text-dim); }
+    .hero-stats {
+      display: flex;
+      gap: 2.5rem;
+      flex-wrap: wrap;
+      margin-top: 3rem;
+      padding-top: 2rem;
+      border-top: 1px solid var(--border);
+      opacity: 0;
+      animation: heroFade 0.8s 0.8s var(--ease-out-expo) forwards;
+    }
+    .stat-value {
+      font-family: var(--display);
+      font-size: 1.9rem;
+      color: var(--text);
+      line-height: 1;
+    }
+    .stat-label {
+      font-family: var(--mono);
+      font-size: 0.65rem;
+      font-weight: 400;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-top: 0.35rem;
+    }
+
+    @keyframes heroFade {
+      from { opacity: 0; transform: translateY(16px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ── Section ──────────────────────────── */
+    section { margin-top: 8vh; padding: 2rem 0; }
+    .section-label {
+      font-family: var(--mono);
+      font-size: 0.65rem;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.2em;
+      color: var(--accent);
+      margin-bottom: 0.75rem;
+    }
+    .section-title {
+      font-family: var(--display);
+      font-size: clamp(1.7rem, 4vw, 2.6rem);
+      font-weight: 400;
+      color: var(--text);
+      line-height: 1.15;
+      margin-bottom: 1rem;
+    }
+    .section-desc {
+      font-size: 1.05rem;
+      color: var(--text-secondary);
+      max-width: 560px;
+      margin-bottom: 2.5rem;
+      line-height: 1.7;
+    }
+
+    /* ── Featured section ─────────────────── */
+    .featured-section {
+      background: var(--bg-featured);
+      margin-top: 8vh;
+      padding: 5rem 0;
+    }
+    .featured-section > .container { max-width: var(--max-w); margin: 0 auto; padding: 0 1.5rem; }
+    .featured-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2rem;
+      margin-top: 2.5rem;
+    }
+    .featured-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 3rem;
+      transition: border-color 0.3s var(--ease-out-expo), transform 0.3s var(--ease-out-expo);
+      position: relative;
+      overflow: hidden;
+    }
+    .featured-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, var(--accent), transparent);
+      opacity: 0;
+      transition: opacity 0.4s;
+    }
+    .featured-card:hover {
+      border-color: var(--border-hover);
+      transform: translateY(-3px);
+    }
+    .featured-card:hover::before { opacity: 1; }
+    .featured-category {
+      font-family: var(--mono);
+      font-size: 0.6rem;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.2em;
+      color: var(--accent);
+      margin-bottom: 1rem;
+    }
+    .featured-title {
+      font-family: var(--display);
+      font-size: clamp(1.4rem, 3vw, 2rem);
+      font-weight: 400;
+      color: var(--text);
+      margin-bottom: 0.5rem;
+      line-height: 1.2;
+    }
+    .featured-concept {
+      font-family: var(--display);
+      font-style: italic;
+      font-size: 1rem;
+      color: var(--accent-bright);
+      margin-bottom: 1.25rem;
+    }
+    .featured-desc {
+      font-size: 0.95rem;
+      color: var(--text-secondary);
+      line-height: 1.75;
+      margin-bottom: 1.5rem;
+    }
+    .featured-tech {
+      font-family: var(--mono);
+      font-size: 0.7rem;
+      color: var(--text-dim);
+      letter-spacing: 0.04em;
+    }
+
+    /* ── Gallery ──────────────────────────── */
+    .gallery-section { margin-top: 8vh; padding: 2rem 0 4rem; }
+    .filter-bar {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      align-items: center;
+      margin-bottom: 2.5rem;
+      padding: 1rem 0;
+    }
+    .filter-btn {
+      font-family: var(--mono);
+      font-size: 0.72rem;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      background: transparent;
+      color: var(--text-dim);
+      border: 1px solid var(--border);
+      padding: 0.45rem 1rem;
+      border-radius: 20px;
+      cursor: pointer;
+      transition: color 0.25s, border-color 0.25s, background 0.25s;
+    }
+    .filter-btn:hover {
+      color: var(--text);
+      border-color: var(--border-hover);
+    }
+    .filter-btn[aria-pressed="true"] {
+      background: var(--accent);
+      color: var(--bg);
+      border-color: var(--accent);
+    }
+    .result-count {
+      font-family: var(--mono);
+      font-size: 0.65rem;
+      color: var(--text-dim);
+      margin-left: auto;
+      letter-spacing: 0.08em;
+    }
+    .gallery-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 1.25rem;
+    }
+    .gallery-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-left: 3px solid transparent;
+      border-radius: 12px;
+      padding: 1.5rem 1.4rem;
+      transition:
+        border-color 0.3s var(--ease-out-expo),
+        border-left-color 0.3s var(--ease-out-expo),
+        background 0.3s var(--ease-out-expo),
+        transform 0.3s var(--ease-out-expo),
+        box-shadow 0.3s var(--ease-out-expo);
+      position: relative;
+      overflow: hidden;
+    }
+    .gallery-card::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(ellipse at 0% 50%, var(--accent-glow), transparent 70%);
+      opacity: 0;
+      transition: opacity 0.4s;
+    }
+    .gallery-card:hover {
+      border-color: var(--border-hover);
+      border-left-color: var(--accent);
+      background: var(--bg-card-hover);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 32px rgba(155, 142, 196, 0.08);
+    }
+    .gallery-card:hover::before { opacity: 1; }
+    .gallery-card.hidden {
+      display: none;
+    }
+    .card-inner { position: relative; z-index: 1; }
+    .card-name {
+      font-family: var(--display);
+      font-size: 1.2rem;
+      font-weight: 400;
+      color: var(--text-dim);
+      margin-bottom: 0.4rem;
+      line-height: 1.2;
+      transition: color 0.3s;
+    }
+    .gallery-card:hover .card-name { color: var(--text); }
+    .card-tagline {
+      font-size: 0.88rem;
+      color: var(--text-dim);
+      line-height: 1.55;
+      transition: color 0.3s;
+    }
+    .gallery-card:hover .card-tagline { color: var(--text-secondary); }
+    .card-category {
+      display: inline-block;
+      font-family: var(--mono);
+      font-size: 0.58rem;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.15em;
+      color: var(--text-dim);
+      margin-top: 1rem;
+      transition: color 0.3s;
+    }
+    .gallery-card:hover .card-category { color: var(--accent); }
+
+    /* Empty state */
+    .gallery-empty {
+      display: none;
+      grid-column: 1 / -1;
+      text-align: center;
+      padding: 3rem;
+      color: var(--text-dim);
+      font-family: var(--display);
+      font-style: italic;
+      font-size: 1.1rem;
+    }
+
+    /* ── Process section ──────────────────── */
+    .process-section { margin-top: 8vh; padding: 2rem 0 4rem; }
+    .arch-flow {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      flex-wrap: wrap;
+      justify-content: center;
+      margin: 2rem 0;
+      padding: 1.75rem 1rem;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+    }
+    .arch-node {
+      font-family: var(--mono);
+      font-size: 0.75rem;
+      font-weight: 500;
+      color: var(--text);
+      padding: 0.5rem 1rem;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--bg-card);
+      white-space: nowrap;
+    }
+    .arch-arrow {
+      font-size: 0.8rem;
+      color: var(--text-dim);
+      padding: 0 0.6rem;
+    }
+    .stack-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-top: 1.5rem;
+    }
+    .stack-pill {
+      font-family: var(--mono);
+      font-size: 0.7rem;
+      font-weight: 500;
+      color: var(--text-secondary);
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      padding: 0.3rem 0.75rem;
+      border-radius: 4px;
+      letter-spacing: 0.04em;
+    }
+
+    /* ── Code blocks ──────────────────────── */
+    pre {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1.1rem 1.3rem;
+      overflow-x: auto;
+      margin: 1.5rem 0;
+      font-size: 0.82rem;
+      line-height: 1.65;
+      position: relative;
+      cursor: pointer;
+      transition: border-color 0.2s;
+    }
+    pre:hover { border-color: rgba(255, 255, 255, 0.1); }
+    code { font-family: var(--mono); font-size: 0.85em; }
+    pre .copy-hint {
+      position: absolute;
+      top: 0.6rem;
+      right: 0.8rem;
+      font-family: var(--mono);
+      font-size: 0.6rem;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+    pre:hover .copy-hint { opacity: 1; }
+
+    /* ── Divider ──────────────────────────── */
+    .divider {
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--border), transparent);
+      margin: 2rem 0;
+    }
+
+    /* ── Footer ───────────────────────────── */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 2.5rem 0 3.5rem;
+      text-align: center;
+      color: var(--text-dim);
+      font-size: 0.8rem;
+    }
+    footer a { color: var(--text-secondary); text-decoration: none; transition: color 0.2s; }
+    footer a:hover { color: var(--accent); }
+
+    /* ── Aria live region ──────────────────── */
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0,0,0,0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    /* ── Responsive ───────────────────────── */
+    @media (max-width: 768px) {
+      .featured-grid { grid-template-columns: 1fr; }
+      .filter-bar { position: sticky; top: 0; z-index: 10; background: var(--bg); padding: 0.75rem 0; border-bottom: 1px solid var(--border); margin-bottom: 1.5rem; }
+      .hero-stats { gap: 1.5rem; }
+    }
+    @media (max-width: 480px) {
+      .gallery-grid { grid-template-columns: 1fr; }
+      .featured-card { padding: 2rem; }
+      .hero { padding: 4rem 0 3rem; min-height: auto; }
+    }
+
+    /* ── Reduced motion ───────────────────── */
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        transition-duration: 0.01ms !important;
+      }
+      .reveal { opacity: 1; transform: none; }
+      #heroCanvas { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Hero -->
+<div class="hero">
+  <canvas id="heroCanvas" role="presentation" aria-hidden="true"></canvas>
+  <div class="container">
+    <div class="hero-content">
+      <div class="hero-eyebrow">Lunar Tools &middot; Art Prototypes &middot; 2025</div>
+      <h1>Installations that<br><em>look back</em></h1>
+      <p class="hero-statement">We build tools that look back at us. These prototypes sit at the edge where AI stops being a tool and starts being a mirror &mdash; observing, reflecting, sometimes revealing things we didn&rsquo;t know we were showing. They are sketches of encounters, not products.</p>
+      <div class="hero-actions">
+        <a href="#gallery" class="btn-primary">Explore the collection</a>
+        <a href="https://github.com/adrianwedd/lunar_tools_prototypes" class="btn-ghost" target="_blank" rel="noopener">View on GitHub</a>
+      </div>
+      <div class="hero-stats">
+        <div>
+          <div class="stat-value">29</div>
+          <div class="stat-label">Installations</div>
+        </div>
+        <div>
+          <div class="stat-value">Apple&thinsp;M</div>
+          <div class="stat-label">Silicon</div>
+        </div>
+        <div>
+          <div class="stat-value">Voice</div>
+          <div class="stat-label">Cloning</div>
+        </div>
+        <div>
+          <div class="stat-value">Emotion</div>
+          <div class="stat-label">Detection</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="container">
+  <main>
+
+    <!-- Featured -->
+    <section class="featured-section reveal" id="featured" style="margin-left: -1.5rem; margin-right: -1.5rem; padding-left: 1.5rem; padding-right: 1.5rem; border-radius: 16px;">
+      <div class="section-label">Featured Experiences</div>
+      <div class="section-title">The mirrors</div>
+      <p class="section-desc">Two installations where the AI learns to reflect. The technology disappears; what remains is the encounter.</p>
+      <div class="featured-grid">
+
+        <article class="featured-card">
+          <div class="featured-category">Echoes</div>
+          <h2 class="featured-title">Audio Mirror</h2>
+          <p class="featured-concept">An oracle that speaks in your own voice</p>
+          <p class="featured-desc">You speak. The installation listens &mdash; not just to your words, but to the patterns in how you say them. It asks questions that reach toward vulnerability. Then it synthesizes what it observed and speaks back to you in your own cloned voice, naming things you didn&rsquo;t know you were showing.</p>
+          <div class="featured-tech">MLX &middot; Whisper &middot; Afterwords TTS &middot; Emotion detection</div>
+        </article>
+
+        <article class="featured-card">
+          <div class="featured-category">Reflections</div>
+          <h2 class="featured-title">Mirror of Truth</h2>
+          <p class="featured-concept">A mysterious entity that observes without judgment</p>
+          <p class="featured-desc">A camera watches your face. A prosody analyzer reads the shape of your speech. An AI entity forms and reforms, tracking your emotional trajectory across the interaction. The mirror never lies &mdash; it only shows you what you are already doing.</p>
+          <div class="featured-tech">Webcam &middot; Emotion detection &middot; Prosody analysis &middot; Voice synthesis</div>
+        </article>
+
+      </div>
+    </section>
+
+    <!-- Gallery -->
+    <section class="gallery-section reveal" id="gallery">
+      <div class="section-label">The Collection</div>
+      <div class="section-title">27 more encounters</div>
+      <p class="section-desc">Each piece is a different kind of observation &mdash; sonic, visual, generative, ambient. Browse by category or take them all in.</p>
+
+      <div class="filter-bar" role="group" aria-label="Filter by category">
+        <button class="filter-btn" data-filter="all" aria-pressed="true">All</button>
+        <button class="filter-btn" data-filter="echoes" aria-pressed="false">Echoes</button>
+        <button class="filter-btn" data-filter="reflections" aria-pressed="false">Reflections</button>
+        <button class="filter-btn" data-filter="visions" aria-pressed="false">Visions</button>
+        <button class="filter-btn" data-filter="whispers" aria-pressed="false">Whispers</button>
+        <span class="result-count" aria-live="polite" aria-atomic="true">27 installations</span>
+      </div>
+
+      <div class="gallery-grid" id="galleryGrid">
+
+        <!-- ECHOES -->
+        <article class="gallery-card" data-category="echoes">
+          <div class="card-inner">
+            <h3 class="card-name">Whispers</h3>
+            <p class="card-tagline">Speak and watch your words bloom into drifting, luminous particles that carry their own momentum.</p>
+            <span class="card-category">Echoes</span>
+          </div>
+        </article>
+
+        <article class="gallery-card" data-category="echoes">
+          <div class="card-inner">
+            <h3 class="card-name">Speech Activated Art</h3>
+            <p class="card-tagline">Say anything and the room responds &mdash; your words become images before you finish speaking.</p>
+            <span class="card-category">Echoes</span>
+          </div>
+        </article>
+
+        <article class="gallery-card" data-category="echoes">
+          <div class="card-inner">
+            <h3 class="card-name">Cosmic Soundscape</h3>
+            <p class="card-tagline">Your voice shapes a four-channel universe &mdash; frequencies scatter and reconvene as evolving ambient sound.</p>
+            <span class="card-category">Echoes</span>
+          </div>
+        </article>
+
+        <article class="gallery-card" data-category="echoes">
+          <div class="card-inner">
+            <h3 class="card-name">Audio-Reactive Fractal Forest</h3>
+            <p class="card-tagline">A living forest of mathematical forms that grows, contracts, and changes colour with every sound in the room.</p>
+            <span class="card-category">Echoes</span>
+          </div>
+        </article>
+
+        <article class="gallery-card" data-category="echoes">
+          <div class="card-inner">
+            <h3 class="card-name">Acoustic Fingerprint Painter</h3>
+            <p class="card-tagline">Your voice is unique &mdash; this installation paints abstract brushstrokes that only you could have made.</p>
+            <span class="card-category">Echoes</span>
+          </div>
+        </article>
+
+        <article class="gallery-card" data-category="echoes">
+          <div class="card-inner">
+            <h3 class="card-name">Neural Transfer Music Visualizer</h3>
+            <p class="card-tagline">Live music remakes the visual world in real time, each beat triggering a new style-transferred reality.</p>
+            <span class="card-category">Echoes</span>
+          </div>
+        </article>
+
+        <!-- REFLECTIONS -->
+        <article class="gallery-card" data-category="reflections">
+          <div class="card-inner">
+            <h3 class="card-name">Interactive Storytelling</h3>
+            <p class="card-tagline">You speak, the story continues &mdash; a narrative that bends around whatever you bring into the room.</p>
+            <span class="card-category">Reflections</span>
+          </div>
+        </article>
+
+        <article class="gallery-card" data-category="reflections">
+          <div class="card-inner">
+            <h3 class="card-name">Interactive Storytelling Canvas</h3>
+            <p class="card-tagline">Your words paint scenes that persist, building a visual record of everywhere the story has been.</p>
+            <span class="card-category">Reflections</span>
+          </div>
+        </article>
+
+        <article class="gallery-card" data-category="reflections">
+          <div class="card-inner">
+            <h3 class="card-name">Collaborative Canvas</h3>
+            <p class="card-tagline">Multiple visitors from different locations paint together, with an AI whispering suggestions into the silence.</p>
+            <span class="card-category">Reflections</span>
+          </div>
+        </article>
+
+        <article class="gallery-card" data-category="reflections">
+          <div class="card-inner">
+            <h3 class="card-name">Collaborative Art</h3>
+            <p class="card-tagline">One person draws, another receives &mdash; the AI mediates between them, translating gesture into image.</p>
+            <span class="card-category">Reflections</span>
+          </div>
+        </article>
+
+        <article class="gallery-card" data-category="reflections">
+          <div class="card-inner">
+            <h3 class="card-name">Escape Room</h3>
+            <p class="card-tagline">Solve puzzles that only exist because you spoke them into being &mdash; each solution unlocks a new scene.</p>
+            <span class="card-category">Reflections</span>
+          </div>
+        </article>
+
+        <article class="gallery-card" data-category="reflections">
+          <div class="card-inner">
+            <h3 class="card-name">AI Fashion Show</h3>
+            <p class="card-tagline">Runway looks that no human designed stream past in silence, each one a different AI vision of beauty.</p>
+            <span class="card-category">Reflections</span>
+          </div>
+        </article>
+
+        <article class="gallery-card" data-category="reflections">
+          <div class="card-inner">
+            <h3 class="card-name">Augmented Audio Tours</h3>
+            <p class="card-tagline">Walk through a space and hear it narrate itself &mdash; the AI reads where you are and begins to speak.</p>
+            <span class="card-category">Reflections</span>
+          </div>
+        </article>
+
+        <!-- VISIONS -->
+        <article class="gallery-card" data-category="visions">
+          <div class="card-inner">
+            <h3 class="card-name">AI Dream Interpreter</h3>
+            <p class="card-tagline">Describe a dream and watch it materialize &mdash; surreal imagery and spoken interpretation arrive together.</p>
+            <span class="card-category">Visions</span>
+          </div>
+        </article>
+
+        <article class="gallery-card" data-category="visions">
+          <div class="card-inner">
+            <h3 class="card-name">Emotional Landscape Generator</h3>
+            <p class="card-tagline">Speak and the room reads your feeling, rendering a landscape that matches the emotional weather inside you.</p>
+            <span class="card-category">Visions</span>
+          </div>
+        </article>
+
+        <article class="gallery-card" data-category="visions">
+          <div class="card-inner">
+            <h3 class="card-name">Evolving Cosmic Mural</h3>
+            <p class="card-tagline">Touch a MIDI controller and galaxies shift &mdash; a living mural that morphs at your fingertips.</p>
+            <span class="card-category">Visions</span>
+          </div>
+        </article>
+
+        <article class="gallery-card" data-category="visions">
+          <div class="card-inner">
+            <h3 class="card-name">Temporal Art Gallery</h3>
+            <p class="card-tagline">The artwork changes by the hour &mdash; visit at dawn and see something that will never exist again at midnight.</p>
+            <span class="card-category">Visions</span>
+          </div>
+        </article>
+
+        <article class="gallery-card" data-category="visions">
+          <div class="card-inner">
+            <h3 class="card-name">Real-Time Glitch Art Lab</h3>
+            <p class="card-tagline">Your face feeds through a corruption machine &mdash; the output is a portrait no camera could have made.</p>
+            <span class="card-category">Visions</span>
+          </div>
+        </article>
+
+        <article class="gallery-card" data-category="visions">
+          <div class="card-inner">
+            <h3 class="card-name">Dynamic Visuals</h3>
+            <p class="card-tagline">Slide a MIDI fader and watch geometry obey &mdash; light, shape, and colour bending to your hand.</p>
+            <span class="card-category">Visions</span>
+          </div>
+        </article>
+
+        <article class="gallery-card" data-category="visions">
+          <div class="card-inner">
+            <h3 class="card-name">Data-Driven Cityscape</h3>
+            <p class="card-tagline">A city that breathes with live data &mdash; weather and markets reshape the skyline in real time.</p>
+            <span class="card-category">Visions</span>
+          </div>
+        </article>
+
+        <article class="gallery-card" data-category="visions">
+          <div class="card-inner">
+            <h3 class="card-name">Virtual Cloud Chamber</h3>
+            <p class="card-tagline">Speak and particles bloom outward as if disturbed by an invisible event &mdash; physics made from words.</p>
+            <span class="card-category">Visions</span>
+          </div>
+        </article>
+
+        <!-- WHISPERS -->
+        <article class="gallery-card" data-category="whispers">
+          <div class="card-inner">
+            <h3 class="card-name">Generative Poetry Mosaic</h3>
+            <p class="card-tagline">Say a word and a tile appears &mdash; a growing wall of illustrated couplets that accumulate into a collective poem.</p>
+            <span class="card-category">Whispers</span>
+          </div>
+        </article>
+
+        <article class="gallery-card" data-category="whispers">
+          <div class="card-inner">
+            <h3 class="card-name">Chat Room Narrative Quilt</h3>
+            <p class="card-tagline">Every message from every visitor becomes a visual patch &mdash; the conversation stitches itself into an image.</p>
+            <span class="card-category">Whispers</span>
+          </div>
+        </article>
+
+        <article class="gallery-card" data-category="whispers">
+          <div class="card-inner">
+            <h3 class="card-name">Sentiment Analysis Display</h3>
+            <p class="card-tagline">The room listens to what visitors say and colours itself accordingly &mdash; mood made visible and public.</p>
+            <span class="card-category">Whispers</span>
+          </div>
+        </article>
+
+        <article class="gallery-card" data-category="whispers">
+          <div class="card-inner">
+            <h3 class="card-name">Time-Shifted Echo Chamber</h3>
+            <p class="card-tagline">Speak and your voice returns to you &mdash; delayed, layered, pitch-shifted, a little unfamiliar.</p>
+            <span class="card-category">Whispers</span>
+          </div>
+        </article>
+
+        <article class="gallery-card" data-category="whispers">
+          <div class="card-inner">
+            <h3 class="card-name">Virtual Time Travel</h3>
+            <p class="card-tagline">Turn a dial through history &mdash; each era renders itself with a sound, a scene, an atmosphere.</p>
+            <span class="card-category">Whispers</span>
+          </div>
+        </article>
+
+        <article class="gallery-card" data-category="whispers">
+          <div class="card-inner">
+            <h3 class="card-name">Apocalypse Experience</h3>
+            <p class="card-tagline">Stand inside the end of the world &mdash; desolate landscapes and ambient dread rendered on demand.</p>
+            <span class="card-category">Whispers</span>
+          </div>
+        </article>
+
+        <!-- Empty state (hidden by default) -->
+        <p class="gallery-empty" aria-live="polite">No installations in this collection.</p>
+
+      </div>
+    </section>
+
+    <div class="divider"></div>
+
+    <!-- Process -->
+    <section class="process-section reveal" id="process">
+      <div class="section-label">How it works</div>
+      <div class="section-title">The system</div>
+      <p class="section-desc">All installations run locally on Apple Silicon. The same manager initialises the full stack &mdash; no cloud dependency for inference.</p>
+
+      <div class="arch-flow" aria-label="System architecture flow">
+        <div class="arch-node">Microphone / Webcam</div>
+        <div class="arch-arrow" aria-hidden="true">&rarr;</div>
+        <div class="arch-node">Lunar Tools Manager</div>
+        <div class="arch-arrow" aria-hidden="true">&rarr;</div>
+        <div class="arch-node">LLM (GPT-4 / Ollama)</div>
+        <div class="arch-arrow" aria-hidden="true">&rarr;</div>
+        <div class="arch-node">Image Generator</div>
+        <div class="arch-arrow" aria-hidden="true">&rarr;</div>
+        <div class="arch-node">OpenGL Renderer</div>
+      </div>
+
+      <div class="section-label" style="margin-top: 2rem;">Quick start</div>
+      <pre><code># Clone and install
+git clone https://github.com/adrianwedd/lunar_tools_prototypes.git
+cd lunar_tools_prototypes
+python3 -m venv env && source env/bin/activate
+pip install -r requirements.txt && pip install .
+
+# Copy and configure API keys
+cp .env.example .env
+
+# Run any installation
+python lunar_tools_demo.py --demo audio-mirror
+python lunar_tools_demo.py --demo ai-mirror-of-truth</code><span class="copy-hint">click to copy</span></pre>
+
+      <div class="section-label" style="margin-top: 2rem;">Stack</div>
+      <div class="stack-list">
+        <span class="stack-pill">MLX</span>
+        <span class="stack-pill">Afterwords TTS</span>
+        <span class="stack-pill">OpenCV</span>
+        <span class="stack-pill">librosa</span>
+        <span class="stack-pill">Claude / Ollama</span>
+        <span class="stack-pill">GPT-4 / DALL-E 3</span>
+        <span class="stack-pill">SDXL Turbo</span>
+        <span class="stack-pill">Flux</span>
+        <span class="stack-pill">pydub</span>
+        <span class="stack-pill">PyZMQ</span>
+        <span class="stack-pill">OpenGL</span>
+        <span class="stack-pill">LangSmith</span>
+      </div>
+    </section>
+
+  </main>
+
+  <footer>
+    <p>
+      <a href="https://github.com/adrianwedd/lunar_tools_prototypes" target="_blank" rel="noopener">GitHub</a>
+      &middot;
+      Built with <a href="https://github.com/lunar-tools" target="_blank" rel="noopener">Lunar Tools</a>
+      &middot;
+      MIT License
+    </p>
+  </footer>
+</div>
+
+<!-- Aria live region for filter announcements -->
+<div class="sr-only" role="status" aria-live="polite" id="filterStatus"></div>
+
+<script>
+// ── Mirror shatter hero canvas ────────────────────────────────────
+(function() {
+  const canvas = document.getElementById('heroCanvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+
+  const FRAG_COUNT = 28;
+  let fragments = [];
+  let w, h, raf;
+  let scrollY = 0;
+
+  // Fragment: a triangular polygon with drift/rotation/opacity
+  function createFragment(index) {
+    const angle = (index / FRAG_COUNT) * Math.PI * 2;
+    const radius = 0.25 + Math.random() * 0.2;
+    const cx = 0.5 + Math.cos(angle) * radius;
+    const cy = 0.45 + Math.sin(angle) * radius * 0.6;
+    const size = 60 + Math.random() * 120;
+    const rot = Math.random() * Math.PI * 2;
+    const driftX = (Math.random() - 0.5) * 0.4;
+    const driftY = (Math.random() - 0.5) * 0.3;
+    const driftRot = (Math.random() - 0.5) * 0.008;
+    const alpha = 0.04 + Math.random() * 0.08;
+    // Triangle vertices relative to centre
+    const pts = [
+      { x: 0, y: -size },
+      { x: size * Math.cos(Math.PI * 0.4), y: size * Math.sin(Math.PI * 0.4) },
+      { x: -size * Math.cos(Math.PI * 0.4), y: size * Math.sin(Math.PI * 0.4) },
+    ];
+    return { cx, cy, size, rot, driftX, driftY, driftRot, alpha, pts, phase: Math.random() * Math.PI * 2 };
+  }
+
+  function initFragments() {
+    fragments = Array.from({ length: FRAG_COUNT }, (_, i) => createFragment(i));
+  }
+
+  function resize() {
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    w = canvas.clientWidth;
+    h = canvas.clientHeight;
+    canvas.width = w * dpr;
+    canvas.height = h * dpr;
+    ctx.scale(dpr, dpr);
+  }
+
+  function drawFrame(time) {
+    ctx.clearRect(0, 0, w, h);
+
+    // scroll influences reassembly: 0 = drifted, larger = assembled
+    const scrollFactor = Math.min(scrollY / 400, 1);
+    const t = time * 0.001;
+
+    fragments.forEach(frag => {
+      // Drift away when scrollY=0, pull toward centre as user scrolls
+      const driftScale = 1 - scrollFactor * 0.85;
+      const px = (frag.cx + Math.sin(t * 0.3 + frag.phase) * frag.driftX * driftScale) * w;
+      const py = (frag.cy + Math.cos(t * 0.25 + frag.phase) * frag.driftY * driftScale) * h;
+      const rot = frag.rot + t * frag.driftRot * driftScale;
+
+      ctx.save();
+      ctx.translate(px, py);
+      ctx.rotate(rot);
+
+      // Edge lines
+      ctx.beginPath();
+      ctx.moveTo(frag.pts[0].x, frag.pts[0].y);
+      frag.pts.slice(1).forEach(p => ctx.lineTo(p.x, p.y));
+      ctx.closePath();
+
+      const edgeAlpha = frag.alpha * (0.6 + scrollFactor * 0.4);
+      ctx.strokeStyle = `rgba(155, 142, 196, ${edgeAlpha})`;
+      ctx.lineWidth = 0.75;
+      ctx.stroke();
+
+      // Fill with very low alpha
+      ctx.fillStyle = `rgba(155, 142, 196, ${frag.alpha * 0.15})`;
+      ctx.fill();
+
+      ctx.restore();
+    });
+
+    raf = requestAnimationFrame(drawFrame);
+  }
+
+  function pause() { if (raf) { cancelAnimationFrame(raf); raf = null; } }
+  function resume() { if (!raf) raf = requestAnimationFrame(drawFrame); }
+
+  // Pause canvas when scrolled far off screen
+  const heroObs = new IntersectionObserver(entries => {
+    entries.forEach(e => e.isIntersecting ? resume() : pause());
+  }, { threshold: 0 });
+  heroObs.observe(canvas);
+
+  window.addEventListener('scroll', () => { scrollY = window.scrollY; }, { passive: true });
+  window.addEventListener('resize', () => { resize(); });
+
+  resize();
+  initFragments();
+  raf = requestAnimationFrame(drawFrame);
+})();
+
+// ── Gallery filter ────────────────────────────────────────────────
+(function() {
+  const filterBtns = document.querySelectorAll('.filter-btn');
+  const cards = document.querySelectorAll('.gallery-card');
+  const countEl = document.querySelector('.result-count');
+  const emptyEl = document.querySelector('.gallery-empty');
+  const statusEl = document.getElementById('filterStatus');
+
+  function filterBy(category) {
+    let visible = 0;
+    cards.forEach(card => {
+      const show = category === 'all' || card.dataset.category === category;
+      card.classList.toggle('hidden', !show);
+      if (show) visible++;
+    });
+
+    filterBtns.forEach(btn => {
+      btn.setAttribute('aria-pressed', String(btn.dataset.filter === category));
+    });
+
+    const label = visible === 1 ? '1 installation' : `${visible} installations`;
+    if (countEl) countEl.textContent = label;
+    if (statusEl) statusEl.textContent = `Showing ${label}`;
+    if (emptyEl) emptyEl.style.display = visible === 0 ? 'block' : 'none';
+
+    // Update hash without triggering a scroll
+    const newHash = category === 'all' ? '' : '#' + category;
+    if (location.hash !== newHash) {
+      history.replaceState(null, '', newHash || location.pathname + location.search);
+    }
+  }
+
+  filterBtns.forEach(btn => {
+    btn.addEventListener('click', () => filterBy(btn.dataset.filter));
+  });
+
+  // Keyboard navigation within filter group
+  filterBtns.forEach((btn, idx) => {
+    btn.addEventListener('keydown', e => {
+      if (e.key === 'ArrowRight') { e.preventDefault(); filterBtns[(idx + 1) % filterBtns.length].focus(); }
+      if (e.key === 'ArrowLeft') { e.preventDefault(); filterBtns[(idx - 1 + filterBtns.length) % filterBtns.length].focus(); }
+    });
+  });
+
+  // Init from hash
+  const initial = (location.hash.slice(1) || 'all').toLowerCase();
+  const validCategories = ['all', 'echoes', 'reflections', 'visions', 'whispers'];
+  filterBy(validCategories.includes(initial) ? initial : 'all');
+})();
+
+// ── Scroll reveal (IntersectionObserver) ─────────────────────────
+(function() {
+  const observer = new IntersectionObserver(entries => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('visible');
+        observer.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.08, rootMargin: '0px 0px -30px 0px' });
+
+  document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+})();
+
+// ── Click to copy code blocks ────────────────────────────────────
+document.querySelectorAll('pre').forEach(pre => {
+  pre.addEventListener('click', () => {
+    const code = pre.querySelector('code');
+    if (!code) return;
+    navigator.clipboard.writeText(code.textContent.trim()).then(() => {
+      const hint = pre.querySelector('.copy-hint');
+      if (hint) {
+        hint.textContent = 'copied';
+        hint.style.color = 'var(--accent)';
+        hint.style.opacity = '1';
+        setTimeout(() => {
+          hint.textContent = 'click to copy';
+          hint.style.color = '';
+          hint.style.opacity = '';
+        }, 1500);
+      }
+    }).catch(() => {});
+  });
+});
+</script>
+
+</body>
+</html>
