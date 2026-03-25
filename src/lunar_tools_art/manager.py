@@ -8,7 +8,6 @@ from .emotion import EmotionDetector
 from .llm_backends import create_backend
 from .prosody import ProsodyAnalyzer
 from .tools import (
-    GPT4,
     SDXL_LCM,
     SDXL_TURBO,
     AudioRecorder,
@@ -16,7 +15,6 @@ from .tools import (
     FluxImageGenerator,
     KeyboardInput,
     MidiInput,
-    Ollama,
     Renderer,
     SoundPlayer,
     Speech2Text,
@@ -41,24 +39,8 @@ class LunarToolsArtManager:
             methods_to_trace=["render"],
         )
 
-        llm_provider = config.get("llm.provider", "gpt4")
-
-        if llm_provider == "gpt4":
-            self.gpt4 = self._traceable_tool(
-                GPT4, "GPT4", methods_to_trace=["generate"]
-            )
-        elif llm_provider == "ollama":
-            ollama_model = config.get("llm.ollama.model", "deepseek-r1:1.5b")
-            self.gpt4 = self._traceable_tool(
-                Ollama, "Ollama", model=ollama_model, methods_to_trace=["generate"]
-            )
-        else:
-            self.logger.warning(
-                f"Unknown LLM provider: {llm_provider}. Defaulting to GPT4."
-            )
-            self.gpt4 = self._traceable_tool(
-                GPT4, "GPT4", methods_to_trace=["generate"]
-            )
+        # LLM: use the new pluggable backend. self.gpt4 is a backwards-compat alias.
+        self.gpt4 = None
 
         self.speech2text = self._traceable_tool(
             Speech2Text, "Speech2Text", methods_to_trace=["transcribe"]
@@ -103,6 +85,8 @@ class LunarToolsArtManager:
         try:
             llm_config = config.get("llm", {})
             self.llm_backend = create_backend(llm_config) if llm_config else None
+            # Backwards compat: self.gpt4 aliases self.llm_backend
+            self.gpt4 = self.llm_backend
         except Exception as e:
             self.logger.error(f"Failed to initialize LLM backend: {e}")
             self.llm_backend = None
