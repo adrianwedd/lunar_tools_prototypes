@@ -1,9 +1,11 @@
 # tests/test_llm_backends.py
+import os
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 from src.lunar_tools_art.llm_backends import (
+    ClaudeBackend,
     LLMBackend,
     OllamaLocalBackend,
     create_backend,
@@ -59,3 +61,44 @@ def test_create_backend_ollama():
     }
     backend = create_backend(config)
     assert isinstance(backend, OllamaLocalBackend)
+
+
+def test_claude_generate():
+    with patch.dict(
+        os.environ,
+        {"ANTHROPIC_API_KEY": "test-key"},  # pragma: allowlist secret
+    ):
+        backend = ClaudeBackend(model="claude-sonnet-4-20250514")
+    with patch.object(backend, "_client") as mock_client:
+        mock_msg = MagicMock()
+        mock_msg.content = [MagicMock(text="Insight delivered.")]
+        mock_client.messages.create.return_value = mock_msg
+        result = backend.generate("Analyze this", system_prompt="You are an oracle")
+        assert result == "Insight delivered."
+
+
+def test_claude_returns_none_on_error():
+    with patch.dict(
+        os.environ,
+        {"ANTHROPIC_API_KEY": "test-key"},  # pragma: allowlist secret
+    ):
+        backend = ClaudeBackend(model="claude-sonnet-4-20250514")
+    backend._client.messages.create = MagicMock(side_effect=Exception("API error"))
+    result = backend.generate("hello")
+    assert result is None
+
+
+def test_create_backend_claude():
+    with patch.dict(
+        os.environ,
+        {"ANTHROPIC_API_KEY": "test-key"},  # pragma: allowlist secret
+    ):
+        config = {
+            "provider": "claude",
+            "claude": {
+                "model": "claude-sonnet-4-20250514",
+                "api_key_env": "ANTHROPIC_API_KEY",  # pragma: allowlist secret
+            },
+        }
+        backend = create_backend(config)
+        assert isinstance(backend, ClaudeBackend)

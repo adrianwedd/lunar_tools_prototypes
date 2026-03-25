@@ -8,6 +8,7 @@ Selected via settings.toml [llm] section.
 from __future__ import annotations
 
 import logging
+import os
 from abc import ABC, abstractmethod
 
 import requests
@@ -42,6 +43,33 @@ class OllamaLocalBackend(LLMBackend):
             return None
 
 
+class ClaudeBackend(LLMBackend):
+    def __init__(
+        self,
+        model: str = "claude-sonnet-4-20250514",
+        api_key_env: str = "ANTHROPIC_API_KEY",
+    ):
+        import anthropic
+
+        self.model = model
+        self._client = anthropic.Anthropic(api_key=os.environ.get(api_key_env))
+
+    def generate(self, prompt: str, system_prompt: str | None = None) -> str | None:
+        try:
+            kwargs: dict = {
+                "model": self.model,
+                "max_tokens": 1024,
+                "messages": [{"role": "user", "content": prompt}],
+            }
+            if system_prompt:
+                kwargs["system"] = system_prompt
+            msg = self._client.messages.create(**kwargs)
+            return msg.content[0].text
+        except Exception as e:
+            log.error(f"Claude generate failed: {e}")
+            return None
+
+
 def create_backend(config: dict) -> LLMBackend:
     """Create an LLM backend from a config dict (the [llm] section of settings.toml)."""
     provider = config.get("provider", "ollama")
@@ -50,5 +78,11 @@ def create_backend(config: dict) -> LLMBackend:
         return OllamaLocalBackend(
             model=ollama_cfg.get("model", "llama3.1:8b"),
             base_url=ollama_cfg.get("base_url", "http://localhost:11434"),
+        )
+    if provider == "claude":
+        claude_cfg = config.get("claude", {})
+        return ClaudeBackend(
+            model=claude_cfg.get("model", "claude-sonnet-4-20250514"),
+            api_key_env=claude_cfg.get("api_key_env", "ANTHROPIC_API_KEY"),
         )
     raise ValueError(f"Unknown LLM provider: {provider}")
