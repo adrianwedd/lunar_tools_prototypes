@@ -1,123 +1,220 @@
-import time
-import numpy as np
-from PIL import Image, ImageDraw, ImageFont, ImageFilter
+"""AI Mirror of Truth - Interactive art installation.
+
+An interactive art installation that observes humans through their emotions
+and voice, reflecting their inner truth back to them through a mysterious
+AI entity. Uses real face detection, voice prosody analysis, and cloned
+voice synthesis.
+"""
+
 import json
 import random
-import cv2
-from src.lunar_tools_art import Manager
+import time
 
-class AiMirrorOfTruth:
+import numpy as np
+from PIL import Image, ImageDraw, ImageFilter
+
+from src.lunar_tools_art.prototype_base import PrototypeBase
+
+
+class AiMirrorOfTruth(PrototypeBase):
+    """AI Mirror of Truth prototype.
+
+    Uses webcam emotion detection, voice prosody analysis, and LLM-driven
+    entity generation to create an interactive mirror that reflects the
+    viewer's emotional state.
     """
-    Hackathon Project: AI Mirror of Truth
-    
-    An interactive art installation that:
-    1. Uses Pi camera + Hailo8L NPU for real-time emotion detection
-    2. Analyzes voice sentiment through speech-to-text
-    3. Generates unique AI entity personality based on emotional state
-    4. Creates dynamic visuals and synthesized responses
-    5. Maintains ongoing conversation that evolves with user's emotional state
-    """
-    
-    def __init__(self, lunar_tools_art_manager: Manager, loop_delay=0.033):
-        self.lunar_tools_art_manager = lunar_tools_art_manager
-        self.webcam = self.lunar_tools_art_manager.webcam
-        self.renderer = self.lunar_tools_art_manager.renderer
-        self.gpt4 = self.lunar_tools_art_manager.gpt4
-        self.speech2text = self.lunar_tools_art_manager.speech2text
-        self.text2speech = self.lunar_tools_art_manager.text2speech
-        self.audio_recorder = self.lunar_tools_art_manager.audio_recorder
-        self.sound_player = self.lunar_tools_art_manager.sound_player
-        self.dalle3 = self.lunar_tools_art_manager.dalle3
-        self.keyboard_input = self.lunar_tools_art_manager.keyboard_input
-        self.logger = self.lunar_tools_art_manager.logger
-        
-        self.loop_delay = loop_delay
+
+    def __init__(self, lunar_tools_art_manager, loop_delay=0.033, **kwargs):
+        super().__init__(lunar_tools_art_manager, loop_delay=loop_delay, **kwargs)
+
+        # Shortcuts for new infrastructure
+        self.webcam = self.manager.webcam
+        self.emotion_detector = self.manager.emotion_detector
+        self.prosody_analyzer = self.manager.prosody_analyzer
+        self.voice_client = self.manager.voice_client
+        self.llm = self.manager.llm_backend
+
+    def setup(self):
+        """Initialize entity state, emotion buffer, and validate services."""
         self.conversation_history = []
         self.current_entity = None
         self.emotion_buffer = []
+        self.emotion_trajectory = []
         self.last_entity_update = 0
-        self.entity_update_interval = 15  # Seconds between entity personality updates
-        
-        # Emotion analysis (simulated - would use Hailo8L NPU in production)
-        self.emotion_states = ["joy", "sadness", "anger", "fear", "surprise", "contempt", "neutral"]
-        self.current_emotions = {"primary": "neutral", "intensity": 0.5, "secondary": "neutral"}
-        
-        # Visual state
+        self.entity_update_interval = 15
+        self.current_emotions = {
+            "primary": "neutral",
+            "intensity": 0.5,
+            "secondary": "neutral",
+        }
         self.visual_morph_state = 0.0
-        self.color_palette = [(100, 100, 255), (255, 100, 100), (100, 255, 100)]
-        
-    def _analyze_facial_emotions(self, frame):
-        """
-        Simulated emotion detection - in production would use Hailo8L NPU
-        with optimized emotion recognition models
-        """
-        # Simulate NPU processing time and results
-        time.sleep(0.01)  # Simulate 10ms inference time
-        
-        # Mock emotion detection based on frame analysis
-        # In reality, this would use Hailo8L-optimized emotion recognition
-        gray = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
-        face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
-        faces = face_cascade.detectMultiScale(gray, 1.1, 4)
-        
-        if len(faces) > 0:
-            # Simulate emotion analysis
-            primary_emotion = random.choice(self.emotion_states)
-            intensity = random.uniform(0.3, 0.9)
-            secondary_emotion = random.choice([e for e in self.emotion_states if e != primary_emotion])
-            
-            return {
-                "primary": primary_emotion,
-                "intensity": intensity,
-                "secondary": secondary_emotion,
-                "face_detected": True,
-                "face_count": len(faces)
-            }
-        
-        return {"face_detected": False}
-    
-    def _analyze_voice_sentiment(self, audio_text):
-        """Analyze emotional content of transcribed speech"""
-        if not audio_text.strip():
-            return {"sentiment": "neutral", "intensity": 0.5}
-            
-        prompt = f"""Analyze the emotional sentiment of this text: "{audio_text}"
-        
-        Return JSON format:
-        {{"sentiment": "emotion_name", "intensity": 0.0-1.0, "keywords": ["word1", "word2"]}}
-        
-        Emotions: joy, sadness, anger, fear, surprise, contempt, neutral"""
-        
+
+        # Validate Afterwords voice server
         try:
-            response = self.gpt4.generate(prompt)
-            return json.loads(response)
-        except:
-            return {"sentiment": "neutral", "intensity": 0.5, "keywords": []}
-    
-    def _generate_entity_personality(self, emotion_data, voice_sentiment):
-        """Generate unique AI entity based on emotional analysis"""
-        prompt = f"""Create a unique AI entity personality based on this emotional analysis:
-        
-        Facial Emotions: {emotion_data}
-        Voice Sentiment: {voice_sentiment}
-        
-        The entity should be a reflection of the user's soul - both beautiful and haunting.
-        Generate a JSON response with:
-        {{
-            "name": "entity_name",
-            "personality_traits": ["trait1", "trait2", "trait3"],
-            "speaking_style": "description",
-            "visual_characteristics": "description",
-            "emotional_resonance": "how it connects to user's emotions",
-            "greeting_message": "what it says when first meeting the user"
-        }}
-        
-        Make it deeply personal and slightly otherworldly."""
-        
+            health = self.voice_client.health()
+            if health and health.get("status") == "ok":
+                self.logger.info(
+                    f"Afterwords server available, voices: {health.get('voices', [])}"
+                )
+            else:
+                self.logger.warning(
+                    "Afterwords server responded but status is not ok - "
+                    "voice synthesis may be unavailable"
+                )
+        except Exception as e:
+            self.logger.warning(
+                f"Afterwords server unavailable: {e} - continuing without voice synthesis"
+            )
+
+        self.logger.info(
+            "AI Mirror of Truth setup complete. Press SPACE to speak, q/esc to exit."
+        )
+
+    def update(self):
+        """One iteration of the main loop."""
+        current_time = time.time()
+
+        # Get camera frame
+        frame = None
         try:
-            response = self.gpt4.generate(prompt)
+            frame = self.webcam.get_img()
+        except Exception as e:
+            self.logger.error(f"Camera error: {e}")
+
+        if frame is None:
+            frame = np.zeros((480, 640, 3), dtype=np.uint8)
+
+        # Detect emotions using real emotion detector
+        try:
+            detections = self.emotion_detector.detect(frame)
+            if detections:
+                detection = detections[0]  # Use first face
+                emotion_data = {
+                    "primary": detection.get("primary", "neutral"),
+                    "intensity": detection.get("intensity", 0.5),
+                    "secondary": detection.get("secondary", "neutral"),
+                    "face_detected": True,
+                    "face_count": len(detections),
+                }
+                self.current_emotions = emotion_data
+                self.emotion_buffer.append(emotion_data)
+
+                # Track trajectory (last 10 primary emotions)
+                self.emotion_trajectory.append(emotion_data["primary"])
+                if len(self.emotion_trajectory) > 10:
+                    self.emotion_trajectory.pop(0)
+            else:
+                self.emotion_buffer.append({"face_detected": False})
+        except Exception as e:
+            self.logger.error(f"Emotion detection error: {e}")
+
+        # Keep buffer manageable
+        if len(self.emotion_buffer) > 30:
+            self.emotion_buffer.pop(0)
+
+        # Check for voice input (SPACE key)
+        if self.keyboard_input.is_key_pressed("space"):
+            self._handle_voice_interaction(current_time)
+
+        # Generate and render visual art
+        visual_art = self._generate_visual_art(
+            self.current_emotions, self.current_entity
+        )
+        self.renderer.render(visual_art)
+
+    def cleanup(self):
+        """Stop audio and log session end."""
+        try:
+            if hasattr(self.manager, "sound_player") and self.manager.sound_player:
+                self.manager.sound_player.stop()
+        except Exception as e:
+            self.logger.error(f"Error stopping audio: {e}")
+
+        self.logger.info(
+            f"Mirror session ended after {len(self.conversation_history)} exchanges. "
+            "Your truth remains..."
+        )
+
+    def _handle_voice_interaction(self, current_time):
+        """Record audio, transcribe, analyze prosody, generate response, and speak."""
+        self.logger.info("Listening for voice input...")
+
+        # Record audio
+        try:
+            self.manager.audio_recorder.start_recording("temp_recording.wav")
+            time.sleep(3)
+            self.manager.audio_recorder.stop_recording()
+        except Exception as e:
+            self.logger.error(f"Recording error: {e}")
+            return
+
+        # Transcribe
+        user_text = ""
+        try:
+            user_text = self.manager.speech2text.transcribe("temp_recording.wav")
+        except Exception as e:
+            self.logger.error(f"Transcription error: {e}")
+
+        if not user_text or not user_text.strip():
+            return
+
+        self.logger.info(f"User said: {user_text}")
+
+        # Analyze prosody
+        prosody_summary = "no prosody data"
+        try:
+            import librosa
+
+            audio, sr = librosa.load("temp_recording.wav", sr=None)
+            prosody_data = self.prosody_analyzer.analyze(audio, sr)
+            prosody_summary = (
+                f"pitch_mean={prosody_data.get('pitch_mean', 0):.0f}Hz, "
+                f"energy={prosody_data.get('energy_mean', 0):.2f}, "
+                f"speech_rate={prosody_data.get('speech_rate', 'unknown')}"
+            )
+        except Exception as e:
+            self.logger.warning(f"Prosody analysis failed: {e}")
+
+        # Generate or update entity if needed
+        if (
+            not self.current_entity
+            or current_time - self.last_entity_update > self.entity_update_interval
+        ):
+            self.current_entity = self._generate_entity_personality()
+            self.last_entity_update = current_time
+
+            # Entity introduction on first interaction
+            if len(self.conversation_history) == 0:
+                intro = self.current_entity.get("greeting_message", "I see you...")
+                self._speak(intro)
+                self.conversation_history.append({"user": user_text, "entity": intro})
+
+        # Generate entity response with adaptive system prompt
+        entity_response = self._entity_respond(user_text, prosody_summary)
+        self._speak(entity_response)
+
+        self.conversation_history.append({"user": user_text, "entity": entity_response})
+        self.logger.info(f"Entity: {entity_response}")
+
+    def _generate_entity_personality(self):
+        """Generate a unique AI entity based on current emotional state."""
+        prompt = (
+            "Create a unique AI entity personality based on the viewer's emotional state. "
+            f"Recent emotions: {self.emotion_trajectory}. "
+            "Generate a JSON response with: "
+            '{"name": "entity_name", "personality_traits": ["trait1", "trait2"], '
+            '"speaking_style": "description", "visual_characteristics": "description", '
+            '"emotional_resonance": "how it connects", '
+            '"greeting_message": "first message to viewer"}'
+        )
+
+        try:
+            response = self.llm.generate(
+                prompt,
+                system_prompt="You generate JSON personality descriptions for AI art entities. Respond with valid JSON only.",
+            )
             entity = json.loads(response)
-            self.logger.info(f"Generated entity: {entity['name']}")
+            self.logger.info(f"Generated entity: {entity.get('name', 'Unknown')}")
             return entity
         except Exception as e:
             self.logger.error(f"Error generating entity: {e}")
@@ -127,46 +224,81 @@ class AiMirrorOfTruth:
                 "speaking_style": "speaks in poetic fragments",
                 "visual_characteristics": "shimmering, ethereal form",
                 "emotional_resonance": "mirrors your hidden feelings",
-                "greeting_message": "I see the truth in your eyes..."
+                "greeting_message": "I see the truth in your eyes...",
             }
-    
-    def _entity_respond(self, user_input, current_emotions):
-        """Generate entity response based on conversation and emotions"""
+
+    def _entity_respond(self, user_input, prosody_summary):
+        """Generate entity response using adaptive system prompt."""
         if not self.current_entity:
             return "I am still forming... speak to me again."
-            
-        conversation_context = "\n".join([
-            f"User: {conv['user']}\nEntity: {conv['entity']}" 
-            for conv in self.conversation_history[-3:]  # Last 3 exchanges
-        ])
-        
-        prompt = f"""You are {self.current_entity['name']}, an AI entity with these traits:
-        Personality: {self.current_entity['personality_traits']}
-        Speaking Style: {self.current_entity['speaking_style']}
-        Emotional Resonance: {self.current_entity['emotional_resonance']}
-        
-        User's current emotions: {current_emotions}
-        Recent conversation:
-        {conversation_context}
-        
-        User just said: "{user_input}"
-        
-        Respond as this entity would - be deeply empathetic, slightly otherworldly, and reflect their emotional state back to them in a meaningful way. Keep response under 50 words."""
-        
+
+        entity_name = self.current_entity.get("name", "Echo")
+        traits = ", ".join(
+            self.current_entity.get("personality_traits", ["reflective"])
+        )
+        style = self.current_entity.get("speaking_style", "poetic")
+        trajectory = (
+            " -> ".join(self.emotion_trajectory[-5:])
+            if self.emotion_trajectory
+            else "unknown"
+        )
+
+        system_prompt = (
+            f"You are a mysterious AI entity called {entity_name}. You observe humans through "
+            "their emotions and voice, and you reflect their inner truth back to them.\n\n"
+            f"Personality: {traits}\n"
+            f"Speaking style: {style}\n\n"
+            f"The viewer's emotion trajectory: {trajectory}\n"
+            f"Their recent words and voice patterns: {prosody_summary}\n\n"
+            "Respond as this entity -- empathetic, slightly otherworldly, reflecting their "
+            "emotional state meaningfully. Keep responses under 50 words."
+        )
+
+        conversation_context = "\n".join(
+            f"User: {conv['user']}\nEntity: {conv['entity']}"
+            for conv in self.conversation_history[-3:]
+        )
+
+        prompt = f'Recent conversation:\n{conversation_context}\n\nUser just said: "{user_input}"'
+
         try:
-            response = self.gpt4.generate(prompt)
+            response = self.llm.generate(prompt, system_prompt=system_prompt)
             return response.strip()
         except Exception as e:
             self.logger.error(f"Error generating entity response: {e}")
             return "Your emotions ripple through me like waves... I feel what you feel."
-    
+
+    def _speak(self, text):
+        """Synthesize and play speech via Afterwords voice client."""
+        try:
+            audio_data = self.voice_client.synthesize(text, voice="galadriel")
+            if audio_data:
+                # Write to temp file and play
+                import subprocess  # nosec B404
+                import tempfile
+
+                with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as f:
+                    f.write(audio_data)
+                    temp_path = f.name
+                try:
+                    subprocess.run(  # nosec B603 B607
+                        ["afplay", temp_path], check=False, timeout=30
+                    )
+                except Exception as e:
+                    self.logger.warning(f"Audio playback failed: {e}")
+            else:
+                self.logger.warning(
+                    f"Voice synthesis returned no audio for: {text[:50]}"
+                )
+        except Exception as e:
+            self.logger.warning(f"Voice synthesis error: {e} - text was: {text[:50]}")
+
     def _generate_visual_art(self, emotion_data, entity_data):
-        """Generate dynamic visual art based on emotional state"""
+        """Generate dynamic visual art based on emotional state."""
         width, height = 800, 600
-        image = Image.new('RGB', (width, height), (0, 0, 0))
+        image = Image.new("RGB", (width, height), (0, 0, 0))
         draw = ImageDraw.Draw(image)
-        
-        # Base colors on primary emotion
+
         emotion_colors = {
             "joy": (255, 220, 100),
             "sadness": (100, 150, 255),
@@ -174,158 +306,44 @@ class AiMirrorOfTruth:
             "fear": (150, 100, 150),
             "surprise": (255, 255, 100),
             "contempt": (150, 150, 100),
-            "neutral": (150, 150, 150)
+            "neutral": (150, 150, 150),
         }
-        
-        primary_color = emotion_colors.get(emotion_data.get("primary", "neutral"), (150, 150, 150))
+
+        primary_color = emotion_colors.get(
+            emotion_data.get("primary", "neutral"), (150, 150, 150)
+        )
         intensity = emotion_data.get("intensity", 0.5)
-        
+
         # Create swirling emotional patterns
         center_x, center_y = width // 2, height // 2
         num_spirals = int(intensity * 10) + 3
-        
+
         for i in range(num_spirals):
             spiral_points = []
-            for angle in range(0, 720, 10):  # Two full rotations
+            for angle in range(0, 720, 10):
                 radius = (angle / 720) * (intensity * 200) + 50
                 x = center_x + radius * np.cos(np.radians(angle + i * 45))
                 y = center_y + radius * np.sin(np.radians(angle + i * 45))
                 spiral_points.append((x, y))
-            
-            # Draw spiral with varying opacity
+
             for j in range(len(spiral_points) - 1):
                 alpha = int(255 * (1 - j / len(spiral_points)))
                 color = tuple(int(c * alpha / 255) for c in primary_color)
                 draw.line([spiral_points[j], spiral_points[j + 1]], fill=color, width=3)
-        
+
         # Add entity-specific visual elements
         if entity_data:
-            # Draw entity "presence" as floating orbs
             for _ in range(5):
                 x = random.randint(50, width - 50)
                 y = random.randint(50, height - 50)
                 size = random.randint(20, 60)
                 orb_color = tuple(int(c * 0.7) for c in primary_color)
-                draw.ellipse([x - size//2, y - size//2, x + size//2, y + size//2], 
-                           fill=orb_color, outline=primary_color, width=2)
-        
-        # Apply blur for ethereal effect
+                draw.ellipse(
+                    [x - size // 2, y - size // 2, x + size // 2, y + size // 2],
+                    fill=orb_color,
+                    outline=primary_color,
+                    width=2,
+                )
+
         image = image.filter(ImageFilter.GaussianBlur(radius=1))
-        
         return np.array(image)
-    
-    def _record_and_process_audio(self):
-        """Record audio, transcribe, and analyze sentiment"""
-        self.logger.info("Listening for 3 seconds...")
-        
-        # Record audio
-        audio_file = "temp_recording.wav"
-        self.audio_recorder.start_recording(audio_file)
-        time.sleep(3)  # Record for 3 seconds
-        self.audio_recorder.stop_recording()
-        
-        # Transcribe
-        try:
-            transcription = self.speech2text.transcribe(audio_file)
-            if transcription.strip():
-                self.logger.info(f"Transcribed: {transcription}")
-                sentiment = self._analyze_voice_sentiment(transcription)
-                return transcription, sentiment
-        except Exception as e:
-            self.logger.error(f"Error processing audio: {e}")
-        
-        return "", {"sentiment": "neutral", "intensity": 0.5}
-    
-    def _speak_entity_response(self, text):
-        """Convert entity response to speech and play"""
-        try:
-            audio_file = "entity_response.wav"
-            self.text2speech.generate(text, audio_file)
-            self.sound_player.play_audio(audio_file)
-        except Exception as e:
-            self.logger.error(f"Error generating speech: {e}")
-    
-    def run(self):
-        """Main interaction loop"""
-        self.logger.info("🎭 AI Mirror of Truth - Starting...")
-        self.logger.info("Press SPACE to speak, ESC to exit")
-        
-        # Initial welcome
-        welcome_text = "Welcome to the Mirror of Truth. Let me see your soul..."
-        self._speak_entity_response(welcome_text)
-        
-        last_frame_time = time.time()
-        
-        while True:
-            current_time = time.time()
-            
-            # Check for exit
-            if self.keyboard_input.is_key_pressed(27):  # ESC
-                break
-            
-            # Get camera frame
-            try:
-                frame = self.webcam.get_img()
-                if frame is not None:
-                    # Analyze emotions with simulated NPU processing
-                    emotion_data = self._analyze_facial_emotions(frame)
-                    self.emotion_buffer.append(emotion_data)
-                    
-                    # Keep buffer size manageable
-                    if len(self.emotion_buffer) > 30:
-                        self.emotion_buffer.pop(0)
-                    
-                    # Update current emotions based on recent frames
-                    if emotion_data.get("face_detected"):
-                        self.current_emotions = emotion_data
-                
-            except Exception as e:
-                self.logger.error(f"Camera error: {e}")
-                frame = np.zeros((480, 640, 3), dtype=np.uint8)
-            
-            # Check for voice input
-            if self.keyboard_input.is_key_pressed(32):  # SPACE
-                user_text, voice_sentiment = self._record_and_process_audio()
-                
-                if user_text.strip():
-                    # Generate or update entity if needed
-                    if (not self.current_entity or 
-                        current_time - self.last_entity_update > self.entity_update_interval):
-                        self.current_entity = self._generate_entity_personality(
-                            self.current_emotions, voice_sentiment
-                        )
-                        self.last_entity_update = current_time
-                        
-                        # Entity introduction
-                        if len(self.conversation_history) == 0:
-                            intro = self.current_entity["greeting_message"]
-                            self._speak_entity_response(intro)
-                            self.conversation_history.append({
-                                "user": user_text,
-                                "entity": intro
-                            })
-                    
-                    # Generate entity response
-                    entity_response = self._entity_respond(user_text, self.current_emotions)
-                    self._speak_entity_response(entity_response)
-                    
-                    # Log conversation
-                    self.conversation_history.append({
-                        "user": user_text,
-                        "entity": entity_response
-                    })
-                    
-                    self.logger.info(f"User: {user_text}")
-                    self.logger.info(f"Entity: {entity_response}")
-            
-            # Generate and display visual art
-            visual_art = self._generate_visual_art(self.current_emotions, self.current_entity)
-            self.renderer.render(visual_art)
-            
-            # Control frame rate
-            elapsed = time.time() - last_frame_time
-            if elapsed < self.loop_delay:
-                time.sleep(self.loop_delay - elapsed)
-            last_frame_time = time.time()
-        
-        self.logger.info("Mirror session ended. Your truth remains...")
