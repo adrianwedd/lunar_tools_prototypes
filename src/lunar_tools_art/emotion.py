@@ -27,6 +27,8 @@ class EmotionResult:
 
 class EmotionDetector:
     def __init__(self):
+        self._has_classifier = False
+        self._placeholder_warned = False
         try:
             cascade_path = cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
             self._face_cascade = cv2.CascadeClassifier(cascade_path)
@@ -36,6 +38,11 @@ class EmotionDetector:
         except Exception as e:
             log.warning(f"Could not initialize face detector: {e}")
             self._face_cascade = None
+
+    @property
+    def has_classifier(self) -> bool:
+        """True if a real emotion classifier is loaded (not the placeholder)."""
+        return self._has_classifier
 
     def detect(self, frame: np.ndarray) -> list[EmotionResult]:
         if self._face_cascade is None:
@@ -49,12 +56,14 @@ class EmotionDetector:
             for x, y, w, h in faces:
                 emotions = self._classify_emotion(gray[y : y + h, x : x + w])
                 primary = max(emotions, key=emotions.get)
+                # Placeholder classifier: confidence is 0.0 to signal unreliable
+                confidence = emotions[primary] if self._has_classifier else 0.0
                 results.append(
                     EmotionResult(
                         bbox=(int(x), int(y), int(w), int(h)),
                         emotions=emotions,
                         primary_emotion=primary,
-                        confidence=emotions[primary],
+                        confidence=confidence,
                     )
                 )
             return results
@@ -65,7 +74,13 @@ class EmotionDetector:
     def _classify_emotion(self, face_roi: np.ndarray) -> dict[str, float]:
         """Classify emotion from face ROI.
 
-        Current implementation: placeholder returning neutral.
+        Current implementation: placeholder returning neutral with confidence=0.
         To be replaced with ONNX DNN model or MLX model after validation.
         """
+        if not self._placeholder_warned:
+            log.warning(
+                "EmotionDetector using placeholder classifier — emotions are not real. "
+                "Replace with ONNX/MLX model for actual emotion detection."
+            )
+            self._placeholder_warned = True
         return {e: (0.8 if e == "neutral" else 0.03) for e in EMOTIONS}

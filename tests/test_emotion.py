@@ -47,3 +47,20 @@ def test_detect_graceful_on_no_cascade():
     frame = np.zeros((480, 640, 3), dtype=np.uint8)
     results = detector.detect(frame)
     assert results == []
+
+
+def test_has_classifier_is_false_for_placeholder():
+    detector = EmotionDetector()
+    assert detector.has_classifier is False
+
+
+def test_placeholder_confidence_is_zero():
+    """Placeholder classifier should set confidence to 0.0 to signal unreliable."""
+    detector = EmotionDetector()
+    frame = np.zeros((480, 640, 3), dtype=np.uint8)
+
+    with patch.object(detector, "_face_cascade") as mock_cascade:
+        mock_cascade.detectMultiScale.return_value = np.array([[100, 100, 200, 200]])
+        results = detector.detect(frame)
+        assert len(results) == 1
+        assert results[0].confidence == 0.0  # placeholder = unreliable
