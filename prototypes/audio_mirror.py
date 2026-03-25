@@ -76,6 +76,10 @@ class AudioMirror(PrototypeBase):
         self._last_speech_time = 0.0
         self._processing = False
         self._default_voice = "galadriel"
+        self._playback_proc = None
+        self._playback_tmp = None
+        self._detection_entered_time = 0.0
+        self._clone_voice_names: dict[int, str] = {}  # sequence → verified voice_name
 
     def setup(self):
         self.fsm = AudioMirrorFSM(
@@ -126,6 +130,7 @@ class AudioMirror(PrototypeBase):
             if emotions:
                 self.fsm.on_face_detected()
                 self._last_face_time = current_time
+                self._detection_entered_time = current_time
                 self._speak(self._get_prompt("detection"), use_clone=False)
         elif emotions:
             self._last_face_time = current_time
@@ -150,11 +155,15 @@ class AudioMirror(PrototypeBase):
                 ):
                     self.fsm.on_face_lost()
 
-        # FSM event: speech timeout
+        # FSM event: speech timeout (use detection entry time, not face time)
         if self.fsm.state == "DETECTION":
-            if current_time - self._last_face_time > self.fsm.config.speech_timeout_s:
+            if (
+                current_time - self._detection_entered_time
+                > self.fsm.config.speech_timeout_s
+            ):
                 self.fsm.on_speech_timeout()
                 if self.fsm.state == "DETECTION":
+                    self._detection_entered_time = current_time  # reset for next retry
                     self._speak(self._get_prompt("detection"), use_clone=False)
 
         # FSM event: silence timeout in deepening
@@ -265,6 +274,8 @@ class AudioMirror(PrototypeBase):
                         transcript=transcript,
                     )
                     if result:
+                        # Store the verified voice name from Afterwords
+                        self._clone_voice_names[result.sequence] = result.voice_name
                         self.logger.info(
                             f"Voice cloned: {result.voice_name} ({result.quality})"
                         )
@@ -363,17 +374,18 @@ class AudioMirror(PrototypeBase):
         try:
             wav_bytes = self.manager.voice_client.synthesize(text, voice=voice)
             if wav_bytes:
-                # Write to temp file and play
+                # Write to temp file and play (non-blocking)
                 with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as f:
                     f.write(wav_bytes)
                     tmp_path = f.name
                 try:
-                    subprocess.run(
-                        ["afplay", tmp_path], timeout=30, check=False
+                    # Non-blocking: fire and forget, cleanup on next call
+                    self._cleanup_last_playback()
+                    self._playback_proc = subprocess.Popen(
+                        ["afplay", tmp_path]
                     )  # nosec B603 B607
+                    self._playback_tmp = tmp_path
                 except Exception:  # nosec B110
-                    pass
-                finally:
                     try:
                         os.unlink(tmp_path)
                     except OSError:
@@ -381,15 +393,37 @@ class AudioMirror(PrototypeBase):
         except Exception as e:
             self.logger.warning(f"TTS failed: {e}")
 
+    def _cleanup_last_playback(self):
+        """Clean up previous non-blocking playback process and temp file."""
+        if self._playback_proc is not None:
+            self._playback_proc.poll()
+            if self._playback_proc.returncode is not None:
+                # Process finished — clean up
+                if self._playback_tmp:
+                    try:
+                        os.unlink(self._playback_tmp)
+                    except OSError:
+                        pass
+                    self._playback_tmp = None
+                self._playback_proc = None
+
     def _best_clone_voice(self) -> str | None:
-        """Get the best available cloned voice for this session."""
-        if not self.fsm or not self.fsm.session.voice_entries:
+        """Get the best available cloned voice using verified Afterwords names."""
+        if not self._clone_voice_names:
             return None
-        # Find the longest/highest quality entry
-        best = max(
-            self.fsm.session.voice_entries, key=lambda e: (e.duration_s, e.confidence)
-        )
-        return f"{self.session_id}-{best.sequence:03d}"
+        # Find the entry with longest duration among those successfully cloned
+        best_seq = None
+        best_dur = 0.0
+        for entry in self.fsm.session.voice_entries:
+            if (
+                entry.sequence in self._clone_voice_names
+                and entry.duration_s > best_dur
+            ):
+                best_seq = entry.sequence
+                best_dur = entry.duration_s
+        if best_seq is not None:
+            return self._clone_voice_names[best_seq]
+        return None
 
     def _get_prompt(self, category: str) -> str:
         """Get the next prompt from a category, cycling through options."""
@@ -431,6 +465,15 @@ class AudioMirror(PrototypeBase):
                 self.logger.info(f"Session {self.session_id} voice palette cleaned up")
             except Exception as e:
                 self.logger.warning(f"Session cleanup failed: {e}")
+
+        # Clean up local temp files
+        self._cleanup_last_playback()
+        capture_file = f"/tmp/audio-mirror-{self.session_id}-capture.wav"  # nosec B108
+        try:
+            if os.path.exists(capture_file):
+                os.unlink(capture_file)
+        except OSError:
+            pass
 
     def _render_mirror(self, frame, emotions):
         """Render camera mirror with overlays."""

@@ -7,6 +7,7 @@ voice synthesis.
 """
 
 import json
+import os
 import random
 import time
 
@@ -88,11 +89,11 @@ class AiMirrorOfTruth(PrototypeBase):
         try:
             detections = self.emotion_detector.detect(frame)
             if detections:
-                detection = detections[0]  # Use first face
+                detection = detections[0]  # Use first face (EmotionResult dataclass)
                 emotion_data = {
-                    "primary": detection.get("primary", "neutral"),
-                    "intensity": detection.get("intensity", 0.5),
-                    "secondary": detection.get("secondary", "neutral"),
+                    "primary": detection.primary_emotion,
+                    "intensity": detection.confidence,
+                    "secondary": "neutral",
                     "face_detected": True,
                     "face_count": len(detections),
                 }
@@ -141,7 +142,9 @@ class AiMirrorOfTruth(PrototypeBase):
 
         # Record audio
         try:
-            self.manager.audio_recorder.start_recording("temp_recording.wav")
+            self.manager.audio_recorder.start_recording(
+                "/tmp/mirror-of-truth-recording.wav"  # nosec B108
+            )
             time.sleep(3)
             self.manager.audio_recorder.stop_recording()
         except Exception as e:
@@ -151,7 +154,9 @@ class AiMirrorOfTruth(PrototypeBase):
         # Transcribe
         user_text = ""
         try:
-            user_text = self.manager.speech2text.transcribe("temp_recording.wav")
+            user_text = self.manager.speech2text.transcribe(
+                "/tmp/mirror-of-truth-recording.wav"  # nosec B108
+            )
         except Exception as e:
             self.logger.error(f"Transcription error: {e}")
 
@@ -165,12 +170,16 @@ class AiMirrorOfTruth(PrototypeBase):
         try:
             import librosa
 
-            audio, sr = librosa.load("temp_recording.wav", sr=None)
+            audio, sr = librosa.load(
+                "/tmp/mirror-of-truth-recording.wav",  # nosec B108
+                sr=None,
+            )
             prosody_data = self.prosody_analyzer.analyze(audio, sr)
             prosody_summary = (
-                f"pitch_mean={prosody_data.get('pitch_mean', 0):.0f}Hz, "
-                f"energy={prosody_data.get('energy_mean', 0):.2f}, "
-                f"speech_rate={prosody_data.get('speech_rate', 'unknown')}"
+                f"pitch_mean={prosody_data.pitch_mean:.0f}Hz, "
+                f"energy={prosody_data.energy_rms:.2f}, "
+                f"pace={prosody_data.pace_wps:.1f}wps, "
+                f"emotion={prosody_data.emotion_tag}"
             )
         except Exception as e:
             self.logger.warning(f"Prosody analysis failed: {e}")
@@ -286,6 +295,11 @@ class AiMirrorOfTruth(PrototypeBase):
                     )
                 except Exception as e:
                     self.logger.warning(f"Audio playback failed: {e}")
+                finally:
+                    try:
+                        os.unlink(temp_path)
+                    except OSError:
+                        pass
             else:
                 self.logger.warning(
                     f"Voice synthesis returned no audio for: {text[:50]}"

@@ -132,14 +132,18 @@ def test_departure_to_idle():
 
 
 def test_voice_quality_from_duration():
+    # min_reference_duration_s defaults to 5.0
+    # rough: < 10s, developing: 10-15s, good: >= 15s
     fsm = AudioMirrorFSM()
     assert fsm.best_voice_quality == "none"
     fsm.on_face_detected()
-    fsm.on_speech_captured("hi", 3.0, 0.9)  # < 5s
+    fsm.on_speech_captured("hi", 3.0, 0.9)  # 3s total → rough
     assert fsm.best_voice_quality == "rough"
     fsm.on_capture_complete()
-    fsm.on_speech_captured("more", 12.0, 0.9)  # 12s
+    fsm.on_speech_captured("more", 8.0, 0.9)  # 11s total → developing
     assert fsm.best_voice_quality == "developing"
+    fsm.on_speech_captured("even more", 6.0, 0.9)  # 17s total → good
+    assert fsm.best_voice_quality == "good"
 
 
 def test_reset():

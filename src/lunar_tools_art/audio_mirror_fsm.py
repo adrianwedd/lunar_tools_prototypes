@@ -111,14 +111,8 @@ class AudioMirrorFSM:
             transcript=transcript,
         )
         self.session.voice_entries.append(entry)
-        self.session.transcripts.append(
-            {
-                "text": transcript,
-                "prosody": {},
-                "confidence": confidence,
-                "emotion": emotion,
-            }
-        )
+        # Note: transcript with prosody is appended by the prototype, not the FSM,
+        # to avoid duplication. The FSM only tracks voice_entries and emotion_timeline.
         self.session.emotion_timeline.append(
             {
                 "timestamp": time.monotonic(),
@@ -209,10 +203,11 @@ class AudioMirrorFSM:
         if not self.session.voice_entries:
             return "none"
         total_duration = sum(e.duration_s for e in self.session.voice_entries)
+        # Spec: >=15s = good, >=10s = developing, >=5s = rough
+        if total_duration >= 3 * self.config.min_reference_duration_s:
+            return "good"
         if total_duration >= 2 * self.config.min_reference_duration_s:
             return "developing"
-        if total_duration >= self.config.min_reference_duration_s:
-            return "good"
         return "rough"
 
     @property

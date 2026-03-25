@@ -57,8 +57,15 @@ def test_mirror_of_truth_with_face_detected():
     manager.webcam.get_img.return_value = np.zeros((480, 640, 3), dtype=np.uint8)
     manager.llm_backend = MagicMock()
     manager.emotion_detector = MagicMock()
+    from src.lunar_tools_art.emotion import EmotionResult
+
     manager.emotion_detector.detect.return_value = [
-        {"primary": "joy", "intensity": 0.8, "secondary": "surprise"}
+        EmotionResult(
+            bbox=(100, 100, 200, 200),
+            emotions={"joy": 0.8, "surprise": 0.2},
+            primary_emotion="joy",
+            confidence=0.8,
+        )
     ]
     manager.prosody_analyzer = MagicMock()
     manager.voice_client = MagicMock()
