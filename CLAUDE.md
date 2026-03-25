@@ -59,7 +59,8 @@ pytest -v
 - Centralized initialization and management of all Lunar Tools instances
 - Handles configuration via `settings.toml` and environment variables
 - Provides tracing/monitoring via LangSmith for AI interactions
-- Manages: Speech2Text, GPT4/Ollama, Text2Speech, AudioRecorder, SoundPlayer, Renderer, WebCam, Image Generators (DALL-E, SDXL, Flux), MIDI/Keyboard input
+- Manages: Speech2Text, Text2Speech, AudioRecorder, SoundPlayer, Renderer, WebCam, Image Generators (DALL-E, SDXL, Flux), MIDI/Keyboard input
+- New infrastructure: `llm_backend` (pluggable LLM), `emotion_detector`, `prosody_analyzer`, `voice_client` (Afterwords TTS)
 
 **Configuration (`src/lunar_tools_art/config.py`)**
 
@@ -89,11 +90,19 @@ All art installations are in `prototypes/` and follow a consistent pattern:
 - All have a `run()` method that starts the interactive experience
 - Use keyboard input (typically ESC/Q) to exit experiences gracefully
 
+**Shared Infrastructure (new — March 2026)**
+
+- **LLM Backends (`src/lunar_tools_art/llm_backends.py`)**: Pluggable LLM abstraction supporting Claude API, Ollama (local), Ollama Cloud, and OpenRouter. All backends implement `.generate(prompt, system_prompt)`. Selected via `settings.toml [llm]` section.
+- **Emotion Detection (`src/lunar_tools_art/emotion.py`)**: Face detection via OpenCV Haar cascade with placeholder emotion classifier. `has_classifier` property indicates when real model is available. Fallback chain planned: MLX model -> OpenCV DNN ONNX -> Haar cascade.
+- **Prosody Analysis (`src/lunar_tools_art/prosody.py`)**: Voice prosody extraction via librosa — pitch, energy, pace, pauses, spectral features. Pure signal processing, no ML. Infers coarse emotion tag from prosody heuristics.
+- **Voice Client (`src/lunar_tools_art/voice_client.py`)**: HTTP client for the Afterwords TTS server. Supports synthesis, voice cloning, session palette management, and cleanup.
+- **Audio Mirror FSM (`src/lunar_tools_art/audio_mirror_fsm.py`)**: Pure-logic state machine for the Audio Mirror installation: IDLE -> DETECTION -> FIRST_CAPTURE -> DEEPENING -> ORACLE -> DEPARTURE.
+
 ### Key Technologies
 
-- **AI Models**: GPT-4 for text generation, DALL-E 3/SDXL/Flux for image generation
-- **Audio**: OpenAI TTS, speech recognition, real-time audio processing with librosa/pydub
-- **Visuals**: OpenGL-based renderer, real-time image display
+- **AI Models**: Pluggable LLM (Claude/Ollama/Ollama Cloud/OpenRouter), DALL-E 3/SDXL/Flux for image generation
+- **Audio**: Afterwords TTS server (Qwen3-TTS on MLX, voice cloning), speech recognition, real-time prosody analysis with librosa
+- **Visuals**: OpenGL-based renderer, real-time image display, camera mirror with overlays
 - **Input**: MIDI controllers, keyboard input, microphone, webcam
 - **Monitoring**: LangSmith tracing for AI interactions, comprehensive logging
 
@@ -101,11 +110,17 @@ All art installations are in `prototypes/` and follow a consistent pattern:
 
 The system uses `settings.toml` for configuration:
 
-- `llm.provider`: Choose between "gpt4" or "ollama"
-- `llm.ollama.model`: Specify Ollama model (default: "deepseek-r1:1.5b")
+- `llm.provider`: Choose between "ollama", "claude", "ollama-cloud", or "openrouter"
+- `llm.ollama.model`: Specify Ollama model (default: "llama3.1:8b")
+- `llm.claude.model`: Specify Claude model (default: "claude-sonnet-4-20250514")
+- `afterwords.server_url`: Afterwords TTS server URL (default: "http://localhost:7860")
+- `afterwords.default_voice`: Default voice for TTS (default: "galadriel")
+- `emotion.confidence_threshold`: Minimum confidence for emotion detection
+- `privacy.mode`: "local-only" (forces Ollama) or "cloud-llm" (allows any provider)
 - `renderer.width/height`: Set display dimensions
 - `logging.level`: Set log level
 - Environment variables override TOML settings
+- Cloud LLM backends require API keys: `ANTHROPIC_API_KEY`, `OLLAMA_CLOUD_API_KEY`, `OPENROUTER_API_KEY`
 
 ## Common Patterns
 
@@ -158,6 +173,17 @@ The system uses `settings.toml` for configuration:
 2. Run security scan: `bandit -r src/ prototypes/`
 3. Run tests: `pytest -v`
 4. Check for secrets: `detect-secrets scan --baseline .secrets.baseline`  # pragma: allowlist secret
+
+## Audio Mirror & MLX Migration (March 2026)
+
+New art installation prototypes and shared infrastructure for running on Apple Silicon:
+
+- **Audio Mirror** (`prototypes/audio_mirror.py`): Installation that captures a viewer's voice, progressively clones it via Afterwords TTS, and speaks back personal insights in the viewer's own voice. Uses FSM-driven interaction with 6 phases.
+- **Mirror of Truth Rewrite** (`prototypes/ai-mirror-of-truth.py`): Rewritten with real emotion detection, Afterwords TTS, pluggable LLM, and prosody analysis (previously all simulated).
+- **Afterwords Integration**: The TTS server at `../afterwords/` has been extended with `POST /clone`, `POST /synthesize`, `DELETE /session` endpoints for runtime voice cloning.
+- **Design Spec**: `docs/superpowers/specs/2026-03-25-audio-mirror-and-mlx-migration-design.md`
+- **Implementation Plans**: `docs/superpowers/plans/2026-03-25-*.md`
+- **59 new tests** across 7 test files covering all infrastructure and prototypes.
 
 ## Recent Security Improvements (August 2025)
 
