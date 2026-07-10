@@ -164,6 +164,18 @@ Getting Started
 
 3. Install Dependencies
 
+On macOS (Apple Silicon), install with the `mlx` and `hw` extras for native MLX models and
+hardware I/O (MIDI, audio devices, etc.), plus `dev` for tests:
+
+`pip install -e ".[mlx,hw,dev]"`
+
+On Linux (e.g. CI, headless), only the `dev` extra is needed — MLX/hardware imports are lazy and
+never load without the corresponding extras installed:
+
+`pip install -e ".[dev]"`
+
+Alternatively, the legacy path still works:
+
 `pip install -r requirements.txt`
 `pip install .` (to install the `lunar_tools_art` package)
 

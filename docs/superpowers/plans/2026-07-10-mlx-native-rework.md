@@ -640,7 +640,7 @@ def test_generate_async_posts_to_queue(tmp_path):
     q, got = MainLoopQueue(), []
     gen.generate_async("p", q, lambda path, meta: got.append(path), size=(32, 32))
     for _ in range(50):
-        q.drain(); 
+        q.drain();
         if got: break
         time.sleep(0.05)
     assert got and got[0].endswith(".png")

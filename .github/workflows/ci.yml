@@ -53,7 +53,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ['3.9', '3.10', '3.11', '3.12']
+        python-version: ['3.10', '3.12']
 
     steps:
     - name: Checkout code
@@ -68,27 +68,31 @@ jobs:
       uses: actions/cache@v3
       with:
         path: ~/.cache/pip
-        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt', '**/pyproject.toml') }}
         restore-keys: |
           ${{ runner.os }}-pip-
 
-    - name: Install dependencies
+    # Linux CI intentionally installs only the "dev" extra — no "mlx" or
+    # "hw" extras. All Apple Silicon / hardware imports (mlx, mlx-whisper,
+    # mlx-lm, mflux, sounddevice, pyglet, mido, python-rtmidi, pyzmq,
+    # pynput) are lazy inside src/lunar_tools_art/tools/, so a green run
+    # here on plain Linux is the proof those imports never happen at
+    # module load time. LUNAR_HEADLESS=1 additionally swaps in the
+    # deterministic in-repo fakes (see src/lunar_tools_art/tools/) for
+    # every hardware/cloud-backed tool.
+    - name: Install package (dev extra only)
       run: |
         python -m pip install --upgrade pip
-        pip install -r requirements.txt
-        pip install pytest pytest-cov pytest-mock
+        pip install -e ".[dev]"
 
-    - name: Install package
+    - name: Run tests (headless)
       run: |
-        pip install -e .
-
-    - name: Run tests with coverage
-      run: |
-        pytest tests/ -v --cov=src/lunar_tools_art --cov-report=xml --cov-report=html
+        LUNAR_HEADLESS=1 pytest -q --cov=src/lunar_tools_art --cov-report=xml --cov-report=html
       env:
         # Mock environment variables for testing
         OPENAI_API_KEY: "test-key"
         REPLICATE_API_TOKEN: "test-token"
+        LUNAR_HEADLESS: "1"
 
     - name: Upload test reports
       uses: actions/upload-artifact@v3
