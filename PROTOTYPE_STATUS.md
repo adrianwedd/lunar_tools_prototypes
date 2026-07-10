@@ -42,13 +42,13 @@ for everything unless otherwise noted.
 | generative-poetry-mosaic.py | works | Instantiates and runs cleanly. | no |
 | interactive-storytelling-canvas-prototype.py | works (fixed) | Fixed in this sweep: removed the `from utils import record_and_transcribe_speech` import (no top-level `utils` module exists) in favor of `self.speech2text.transcribe(duration=10)`, matching the convention used elsewhere (e.g. `speech_activated_art.py`); guarded the nonexistent `manager.glif_api` with `getattr(..., None)` (image visualization via Glif is out of scope for the current tools layer); fixed a `self.lunar_tools_manager` → `self.lunar_tools_art_manager`/`self.glif_api` typo in `visualize_story()`. | no |
 | interactive_storytelling.py | works | Instantiates and runs cleanly. | no |
-| neural-transfer-music-visualizer.py | needs-rework | Calls `SoundPlayer.stop_sound`, which does not exist on the tools-layer `SoundPlayer`; pre-existing xfail carried into this sweep. | no |
+| neural-transfer-music-visualizer.py | needs-rework | Calls `SoundPlayer.stop_sound`, which does not exist on the tools-layer `SoundPlayer`; pre-existing xfail from the dedicated legacy `run()` test in `tests/test_lunar_tools_art.py` (construction-only smoke matrix passes). | no |
 | real-time-glitch-art-lab.py | works | Instantiates and runs cleanly. | no |
 | sentiment_analysis_display.py | works | Instantiates and runs cleanly. | no |
 | speech_activated_art.py | works | Instantiates and runs cleanly. | no |
 | temporal-art-gallery-prototype.py | works | Instantiates and runs cleanly. | no |
 | time-shifted-echo-chamber.py | needs-rework | Requires `api_keys.openweathermap` in `settings.toml`, which is not configured in this environment; pre-existing xfail carried into this sweep. | no |
-| virtual-cloud-chamber.py | works | Instantiates and runs cleanly (`text2speech` unavailability is caught rather than propagated). | no |
+| virtual-cloud-chamber.py | degraded | `text2speech` unavailable in headless is caught and swallowed inside the prototype (consistent with `augmented_audio_tours.py`). | no |
 | virtual_time_travel.py | needs-rework | Calls `.strip()` directly on `gpt4.generate()`'s return value without a `None` guard; same root cause as `escape_room.py`. Pre-existing xfail carried into this sweep. | no |
 | whispers.py | works | Instantiates and runs cleanly. | no |
 
@@ -56,8 +56,8 @@ for everything unless otherwise noted.
 
 Totals across all 29 prototypes (27 legacy + `audio_mirror.py` + `ai-mirror-of-truth.py`):
 
-- **works**: 20
-- **degraded**: 1 (`augmented_audio_tours.py`)
+- **works**: 19
+- **degraded**: 2 (`augmented_audio_tours.py`, `virtual-cloud-chamber.py`)
 - **needs-rework**: 8 (`acoustic-fingerprint-painter.py`, `chat-room-narrative-quilt.py`, `cosmic-soundscape.py`, `data-driven-cityscape.py`, `escape_room.py`, `neural-transfer-music-visualizer.py`, `time-shifted-echo-chamber.py`, `virtual_time_travel.py`)
 
 None of the `needs-rework` items regress the test suite — they are asserted via `pytest.xfail` in `tests/test_prototype_smoke.py` (and, for prototypes also covered by `tests/test_lunar_tools_art.py`, via the pre-existing `@pytest.mark.xfail` markers there) so `LUNAR_HEADLESS=1 pytest -q` is fully green.
