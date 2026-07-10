@@ -61,3 +61,16 @@ Totals across all 29 prototypes (27 legacy + `audio_mirror.py` + `ai-mirror-of-t
 - **needs-rework**: 8 (`acoustic-fingerprint-painter.py`, `chat-room-narrative-quilt.py`, `cosmic-soundscape.py`, `data-driven-cityscape.py`, `escape_room.py`, `neural-transfer-music-visualizer.py`, `time-shifted-echo-chamber.py`, `virtual_time_travel.py`)
 
 None of the `needs-rework` items regress the test suite — they are asserted via `pytest.xfail` in `tests/test_prototype_smoke.py` (and, for prototypes also covered by `tests/test_lunar_tools_art.py`, via the pre-existing `@pytest.mark.xfail` markers there) so `LUNAR_HEADLESS=1 pytest -q` is fully green.
+
+## Shared infrastructure: emotion classifier (Task 13, code half)
+
+`EmotionDetector` (`src/lunar_tools_art/emotion.py`) now supports a real ONNX FER+ classifier
+(OpenCV DNN, 64x64 grayscale input, softmax over the 8 FER+ labels) alongside its existing Haar
+cascade face detector. It takes an optional `model_path=None` kwarg (default sourced from
+`settings.toml [emotion] model_path`); with no model file present, behavior is unchanged from the
+prior placeholder (`has_classifier is False`, confidence `0.0`). `scripts/fetch_models.py`
+downloads and SHA-256-verifies the model weights; `scripts/smoke_emotion.py` is an on-machine
+webcam smoke test with an emotion-label overlay and FPS report. **Not yet run on-machine**:
+`fetch_models.py` (checksum is a documented placeholder pending a human running the real
+download once), `smoke_emotion.py` (webcam), and the flagship end-to-end Audio Mirror / Mirror of
+Truth runs with Afterwords — all deferred to a human per Task 13 Step 5.

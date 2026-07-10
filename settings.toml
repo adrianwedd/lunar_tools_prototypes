@@ -26,6 +26,7 @@ default_voice = "galadriel"
 
 [emotion]
 model = "auto"
+model_path = "models/emotion-ferplus-8.onnx"
 confidence_threshold = 0.5
 fallback = "haar-cascade"
 
