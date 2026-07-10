@@ -109,7 +109,7 @@ All art installations are in `prototypes/` and follow a consistent pattern:
 - `resolve(name)` in `tools/__init__.py` is the single entry point consumers use to obtain a tool instance: when `LUNAR_HEADLESS=1` (checked via `headless.headless_active()`) and `name` is in the `_FAKES` table, the fake is returned instead of constructing the real backend. This is what keeps `mlx`/`hw`-extras imports out of the default/Linux/CI import path — they only happen if `resolve()` actually reaches the real-backend branch.
 - **STT**: `Transcription` (in `stt.py`) is a `str` subclass — callers can treat it as plain text while it also carries recognition metadata (confidence, duration, etc.) as attributes.
 - **Images**: a single unified `ImageGenerator` in `images.py` replaces the old per-provider classes; it defaults to `mflux` (MLX-native Flux) on real hardware and to a fake backend under `LUNAR_HEADLESS`. The old provider-specific names (`Dalle3ImageGenerator`, `SDXL_TURBO`, etc.) remain as `DeprecatedAlias` wrappers that adapt kwargs and emit a `DeprecationWarning` pointing callers at `manager.image_gen`.
-- **Privacy gate**: `privacy.mode` in `settings.toml` defaults to `"local-only"`, which forces Ollama for LLM and blocks construction of any cloud-backed LLM/TTS/image backend; `"cloud-llm"` allows other providers. The gate is enforced at construction time in the relevant `tools/` modules, not just at call time.
+- **Privacy gate**: `privacy.mode` in `settings.toml` defaults to `"local-only"`, which forces Ollama for LLM and blocks construction of any cloud-backed LLM/TTS/image backend; `"cloud-ok"` allows other providers (`"cloud-llm"` is a deprecated alias for `"cloud-ok"`). The gate is enforced at construction time in the relevant `tools/` modules, not just at call time.
 - **`MainLoopQueue`**: cross-thread queue used to hand work (e.g. async STT/LLM results) back into a prototype's synchronous main loop.
 - **Prototype status matrix**: `PROTOTYPE_STATUS.md` tracks per-prototype smoke status against the headless tools layer — as of this sweep, 19 `works`, 2 `degraded`, 8 `needs-rework` (of 29 total).
 
@@ -131,7 +131,7 @@ The system uses `settings.toml` for configuration:
 - `afterwords.server_url`: Afterwords TTS server URL (default: "http://localhost:7860")
 - `afterwords.default_voice`: Default voice for TTS (default: "galadriel")
 - `emotion.confidence_threshold`: Minimum confidence for emotion detection
-- `privacy.mode`: "local-only" (forces Ollama) or "cloud-llm" (allows any provider)
+- `privacy.mode`: "local-only" (default) or "cloud-ok" (allows cloud providers; "cloud-llm" is a deprecated alias)
 - `renderer.width/height`: Set display dimensions
 - `logging.level`: Set log level
 - Environment variables override TOML settings
