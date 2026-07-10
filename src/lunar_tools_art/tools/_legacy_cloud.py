@@ -27,28 +27,6 @@ class Text2SpeechOpenAI:
         pass
 
 
-class AudioRecorder:
-    def __init__(self, *args, **kwargs):
-        pass
-
-    def start_recording(self, *args, **kwargs):
-        pass
-
-    def stop_recording(self, *args, **kwargs):
-        pass
-
-
-class SoundPlayer:
-    def __init__(self, *args, **kwargs):
-        pass
-
-    def play_sound(self, *args, **kwargs):
-        pass
-
-    def play_audio(self, *args, **kwargs):
-        pass
-
-
 class KeyboardInput:
     def __init__(self, *args, **kwargs):
         pass

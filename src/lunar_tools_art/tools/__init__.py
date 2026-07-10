@@ -6,18 +6,17 @@ from . import headless as _hl
 from ._legacy_cloud import (  # noqa: F401
     SDXL_LCM,
     SDXL_TURBO,
-    AudioRecorder,
     Dalle3ImageGenerator,
     FluxImageGenerator,
     KeyboardInput,
     MidiInput,
     Renderer,
-    SoundPlayer,
     Speech2Text,
     Text2SpeechOpenAI,
     WebCam,
     ZMQPairEndpoint,
 )
+from .audio import AudioRecorder, SoundPlayer  # noqa: F401
 
 _FAKES = {
     "Renderer": _hl.FakeRenderer,
