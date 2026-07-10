@@ -406,9 +406,7 @@ def test_chat_room_narrative_quilt_smoke_test():
 
 
 # Smoke test for virtual-cloud-chamber.py
-@pytest.mark.xfail(
-    reason="prototype calls KeyboardInput.is_any_key_pressed(), a method that does not exist on the current KeyboardInput tool (stub-era code)"
-)
+# Note: KeyboardInput.is_any_key_pressed() now exists; prototype has latent text2speech=None issue in headless mode but smoke test passes.
 def test_virtual_cloud_chamber_smoke_test():
     module = _load_prototype_module("virtual-cloud-chamber.py", "virtual_cloud_chamber")
     VirtualCloudChamber = module.VirtualCloudChamber
