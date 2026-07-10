@@ -1,8 +1,6 @@
 import logging
 import os
 
-from langsmith import traceable
-
 from .config import config
 from .emotion import EmotionDetector
 from .llm_backends import create_backend
@@ -22,6 +20,7 @@ from .tools import (
     WebCam,
     ZMQPairEndpoint,
 )
+from .tracing import traceable
 from .voice_client import VoiceClient
 
 
