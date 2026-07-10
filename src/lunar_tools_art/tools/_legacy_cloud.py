@@ -1,11 +1,3 @@
-class Speech2Text:
-    def __init__(self, *args, **kwargs):
-        pass
-
-    def transcribe(self, *args, **kwargs):
-        pass
-
-
 class Text2SpeechOpenAI:
     def __init__(self, *args, **kwargs):
         pass

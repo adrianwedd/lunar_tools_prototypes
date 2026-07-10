@@ -27,7 +27,7 @@ confidence_threshold = 0.5
 fallback = "haar-cascade"
 
 [whisper]
-backend = "faster-whisper"
+backend = "mlx-whisper"
 model = "base.en"
 
 [privacy]

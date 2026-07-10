@@ -91,7 +91,6 @@ class FakeSpeech2Text:
         pass
 
     def transcribe(self, *args, **kwargs):
-        # TODO(Task 7): return Transcription("hello world", confidence=1.0,
-        # language="en") once the Transcription str-subclass type lands.
-        # Until then a plain dict is fine because nothing consumes it headless.
-        return {"text": "hello world", "confidence": 1.0, "language": "en"}
+        from .stt import Transcription
+
+        return Transcription("hello world", confidence=1.0, language="en")
