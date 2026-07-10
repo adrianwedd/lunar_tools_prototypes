@@ -11,8 +11,8 @@ from abc import ABC, abstractmethod
 from contextlib import contextmanager
 from typing import Any, Optional
 
-from .exceptions import PrototypeExceptionHandler
-from .manager import Manager
+from .exceptions import ExceptionHandler
+from .manager import LunarToolsArtManager
 
 
 class PrototypeBase(ABC):
@@ -28,7 +28,10 @@ class PrototypeBase(ABC):
     """
 
     def __init__(
-        self, lunar_tools_art_manager: Manager, loop_delay: float = 0.1, **kwargs: Any
+        self,
+        lunar_tools_art_manager: LunarToolsArtManager,
+        loop_delay: float = 0.1,
+        **kwargs: Any,
     ):
         """Initialize the prototype with manager and configuration.
 
@@ -45,7 +48,7 @@ class PrototypeBase(ABC):
         self.logger = logging.getLogger(f"{__name__}.{self.__class__.__name__}")
 
         # Set up exception handler for consistent error handling
-        self.exception_handler = PrototypeExceptionHandler(
+        self.exception_handler = ExceptionHandler(
             logger=self.logger, prototype_name=self.__class__.__name__
         )
 
@@ -248,7 +251,7 @@ class InteractivePrototype(PrototypeBase):
     - User input handling
     """
 
-    def __init__(self, lunar_tools_art_manager: Manager, **kwargs):
+    def __init__(self, lunar_tools_art_manager: LunarToolsArtManager, **kwargs):
         super().__init__(lunar_tools_art_manager, **kwargs)
 
         # Interactive tool references
@@ -296,7 +299,7 @@ class AIPrototype(PrototypeBase):
     - Error handling for AI services
     """
 
-    def __init__(self, lunar_tools_art_manager: Manager, **kwargs):
+    def __init__(self, lunar_tools_art_manager: LunarToolsArtManager, **kwargs):
         super().__init__(lunar_tools_art_manager, **kwargs)
 
         # AI tool references
