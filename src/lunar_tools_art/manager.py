@@ -110,11 +110,12 @@ class LunarToolsArtManager:
         image_config = dict(config.get("image", {}))
         if headless_active():
             image_config["backend"] = "fake"
-        try:
-            self.image_gen = ImageGenerator(**image_config)
-        except Exception as e:
-            self.logger.error(f"Failed to initialize ImageGenerator: {e}")
-            self.image_gen = None
+        self.image_gen = self._traceable_tool(
+            ImageGenerator,
+            "ImageGenerator",
+            methods_to_trace=["generate"],
+            **image_config,
+        )
 
         if self.image_gen is not None:
             self.dalle3 = DeprecatedAlias(self.image_gen, "Dalle3ImageGenerator")
@@ -211,7 +212,9 @@ class LunarToolsArtManager:
                 methods_to_trace = ["generate"]
             elif tool_name == "Speech2Text":
                 methods_to_trace = ["transcribe"]
-            elif tool_name == "Text2SpeechOpenAI":
+            elif tool_name in ("Text2SpeechOpenAI", "Text2Speech"):
+                methods_to_trace = ["generate"]
+            elif tool_name == "ImageGenerator":
                 methods_to_trace = ["generate"]
             elif tool_name == "AudioRecorder":
                 methods_to_trace = ["start_recording", "stop_recording"]
