@@ -45,6 +45,9 @@ class ZMQPairEndpoint:
 
                 time.sleep(0.1)
         except Exception as e:
+            if self._socket is not None:
+                self._socket.close(linger=0)
+                self._socket = None
             self._degraded = True
             logger.warning(f"ZMQ endpoint unavailable ({address}); degraded: {e}")
 
@@ -61,8 +64,22 @@ class ZMQPairEndpoint:
         meta = json.dumps({"shape": list(img.shape), "dtype": str(img.dtype)}).encode()
         self._socket.send_multipart([_IMG_TAG, meta, img.tobytes()])
 
+    @staticmethod
+    def _decode_img(frames):
+        """Reconstruct a numpy array from an image frame triple."""
+        import json
+
+        import numpy as np
+
+        meta = json.loads(frames[1].decode("utf-8"))
+        return np.frombuffer(frames[2], dtype=meta["dtype"]).reshape(meta["shape"])
+
     def receive(self, timeout_ms: int = 0):
-        """Return the next text message, or ``None`` if none within timeout."""
+        """Return the next text message, or ``None`` if none within timeout.
+
+        Image frames sent via :meth:`send_img` are skipped here — use
+        :meth:`receive_img` to consume those.
+        """
         if self._degraded:
             return None
 
@@ -75,6 +92,24 @@ class ZMQPairEndpoint:
         if frames and frames[0] == _IMG_TAG:
             return None
         return frames[0].decode("utf-8")
+
+    def receive_img(self, timeout_ms: int = 0):
+        """Return the next image sent via :meth:`send_img`, or ``None``.
+
+        Non-image (text) frames encountered while waiting are skipped.
+        """
+        if self._degraded:
+            return None
+
+        import zmq
+
+        if self._socket.poll(timeout_ms, zmq.POLLIN) == 0:
+            return None
+
+        frames = self._socket.recv_multipart()
+        if not frames or frames[0] != _IMG_TAG:
+            return None
+        return self._decode_img(frames)
 
     def get_messages(self) -> list:
         """Drain all currently pending text messages (non-blocking)."""

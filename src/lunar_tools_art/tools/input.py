@@ -131,6 +131,7 @@ class MidiInput:
 
     def get_latest_message(self):
         if self._degraded:
+            self._warn_once()
             return None
         self._poll()
         return self._last_message

@@ -44,6 +44,10 @@ class WebCam:
 
         ok, frame_bgr = cap.read()
         if not ok or frame_bgr is None:
+            self._degraded = True
+            logger.warning(
+                f"Camera {self.cam_id} read failed mid-stream; WebCam degraded."
+            )
             return None
 
         return frame_bgr[..., ::-1]

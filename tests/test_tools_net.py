@@ -23,12 +23,20 @@ def test_pair_endpoint_get_messages_and_send_img():
     server = ZMQPairEndpoint(bind=True, address="tcp://127.0.0.1:5872")
     client = ZMQPairEndpoint(bind=False, address="tcp://127.0.0.1:5872")
     try:
-        client.send_img(np.zeros((2, 2, 3), dtype=np.uint8))
-        import time
+        img = np.arange(2 * 2 * 3, dtype=np.uint8).reshape(2, 2, 3)
+        client.send_img(img)
 
-        time.sleep(0.1)
+        received = server.receive_img(timeout_ms=1000)
+        assert received is not None
+        assert received.shape == img.shape
+        assert received.dtype == img.dtype
+        assert np.array_equal(received, img)
+
+        # get_messages() must not surface image frames as text messages,
+        # and must not swallow images without a way to observe them.
         msgs = server.get_messages()
         assert isinstance(msgs, list)
+        assert msgs == []
     finally:
         server.close()
         client.close()
