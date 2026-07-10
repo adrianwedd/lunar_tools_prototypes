@@ -27,25 +27,6 @@ class Text2SpeechOpenAI:
         pass
 
 
-class KeyboardInput:
-    def __init__(self, *args, **kwargs):
-        pass
-
-    def is_key_pressed(self, *args, **kwargs):
-        return False
-
-    def get(self, *args, **kwargs):
-        return None
-
-
-class WebCam:
-    def __init__(self, *args, **kwargs):
-        pass
-
-    def get_img(self, *args, **kwargs):
-        pass
-
-
 class SDXL_TURBO:
     def __init__(self, *args, **kwargs):
         pass
@@ -76,31 +57,3 @@ class SDXL_LCM:
 
     def generate(self, *args, **kwargs):
         pass
-
-
-class ZMQPairEndpoint:
-    def __init__(self, *args, **kwargs):
-        pass
-
-    def send(self, *args, **kwargs):
-        pass
-
-    def receive(self, *args, **kwargs):
-        pass
-
-    def get_messages(self, *args, **kwargs):
-        return None
-
-    def send_img(self, *args, **kwargs):
-        pass
-
-
-class MidiInput:
-    def __init__(self, *args, **kwargs):
-        pass
-
-    def get_latest_message(self, *args, **kwargs):
-        return None
-
-    def get(self, *args, **kwargs):
-        return 0.0

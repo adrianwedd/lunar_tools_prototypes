@@ -8,15 +8,14 @@ from ._legacy_cloud import (  # noqa: F401
     SDXL_TURBO,
     Dalle3ImageGenerator,
     FluxImageGenerator,
-    KeyboardInput,
-    MidiInput,
     Renderer,
     Speech2Text,
     Text2SpeechOpenAI,
-    WebCam,
-    ZMQPairEndpoint,
 )
 from .audio import AudioRecorder, SoundPlayer  # noqa: F401
+from .camera import WebCam  # noqa: F401
+from .input import KeyboardInput, MidiInput  # noqa: F401
+from .net import ZMQPairEndpoint  # noqa: F401
 
 _FAKES = {
     "Renderer": _hl.FakeRenderer,
