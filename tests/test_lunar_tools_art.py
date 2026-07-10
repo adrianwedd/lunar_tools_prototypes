@@ -38,9 +38,13 @@ def test_lunar_tools_art_manager_initialization():
     # is a backwards-compat alias for manager.llm_backend.
     assert isinstance(manager.llm_backend, LLMBackend)
     assert manager.gpt4 is manager.llm_backend
+    # text2speech now wraps the local (non-cloud) Afterwords VoiceClient, so
+    # it is constructed even under local-only privacy mode.
+    from src.lunar_tools_art.tools.tts import Text2Speech
+
+    assert isinstance(manager.text2speech, Text2Speech)
     # Cloud-calling tools are only constructed when privacy.cloud_allowed();
     # default privacy.mode is local-only, so these are None here.
-    assert manager.text2speech is None
     assert manager.sdxl_turbo is None
     assert manager.dalle3 is None
     assert manager.sdxl_lcm is None

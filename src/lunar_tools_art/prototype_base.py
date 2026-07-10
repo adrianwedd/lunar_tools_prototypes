@@ -11,7 +11,7 @@ from abc import ABC, abstractmethod
 from contextlib import contextmanager
 from typing import Any, Optional
 
-from .exceptions import ExceptionHandler
+from .exceptions import AIServiceError, ExceptionHandler
 from .manager import LunarToolsArtManager
 
 
@@ -307,8 +307,10 @@ class AIPrototype(PrototypeBase):
     def __init__(self, lunar_tools_art_manager: LunarToolsArtManager, **kwargs):
         super().__init__(lunar_tools_art_manager, **kwargs)
 
-        # AI tool references
-        self.llm = self.manager.gpt4
+        # AI tool references. self.manager.gpt4 remains a backward-compat
+        # alias for self.manager.llm_backend (see manager.py); use the
+        # canonical attribute here.
+        self.llm = self.manager.llm_backend
         self.text2speech = self.manager.text2speech
 
         # Image generators (may be None if not configured)
@@ -329,7 +331,12 @@ class AIPrototype(PrototypeBase):
         """
         try:
             self.logger.debug(f"Generating text for prompt: '{prompt[:50]}...'")
-            response = self.llm.chat(prompt, **kwargs)
+            system_prompt = kwargs.pop("system_prompt", None)
+            if kwargs:
+                self.logger.debug(
+                    f"generate_text: dropping unsupported kwargs: {sorted(kwargs)}"
+                )
+            response = self.llm.generate(prompt, system_prompt=system_prompt)
             return response
         except Exception as e:
             self.logger.error(f"Text generation failed: {e}")
@@ -348,14 +355,20 @@ class AIPrototype(PrototypeBase):
         try:
             self.logger.debug(f"Generating image with {generator}: '{prompt[:50]}...'")
 
+            image_gen = getattr(self.manager, "image_gen", None)
+            if image_gen is not None:
+                return image_gen.generate(prompt)
+
+            # Fallback (pre-Task 9): use the named legacy generator if present.
             if generator == "dalle" and self.dalle:
                 return self.dalle.generate(prompt)
             elif generator == "sdxl" and self.sdxl:
                 return self.sdxl.generate(prompt)
-            else:
-                self.logger.warning(f"Image generator '{generator}' not available")
-                return None
 
+            raise AIServiceError(f"Image generator '{generator}' not available")
+
+        except AIServiceError:
+            raise
         except Exception as e:
             self.logger.error(f"Image generation failed: {e}")
             return None

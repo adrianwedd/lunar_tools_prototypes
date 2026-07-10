@@ -8,6 +8,7 @@ from .llm_backends import create_backend
 from .loop_utils import MainLoopQueue
 from .prosody import ProsodyAnalyzer
 from .tools import FluxImageGenerator
+from .tools.tts import Text2Speech
 from .tracing import traceable
 from .voice_client import VoiceClient
 
@@ -36,10 +37,33 @@ class LunarToolsArtManager:
             tools.resolve("Speech2Text"), "Speech2Text", methods_to_trace=["transcribe"]
         )
 
-        # Cloud-calling tools: only constructed when privacy.cloud_allowed().
-        # Otherwise the attribute is None with one INFO log (Task 9 replaces
-        # these with DeprecatedAlias).
-        if privacy.cloud_allowed():
+        # Voice client for the local Afterwords TTS server (no cloud egress;
+        # not privacy-gated). Constructed before text2speech wiring below so
+        # the Text2Speech adapter can use it when available.
+        try:
+            afterwords_config = config.get("afterwords", {})
+            server_url = (
+                afterwords_config.get("server_url", "http://localhost:7860")
+                if afterwords_config
+                else "http://localhost:7860"
+            )
+            self.voice_client = VoiceClient(server_url=server_url)
+        except Exception as e:
+            self.logger.error(f"Failed to initialize VoiceClient: {e}")
+            self.voice_client = None
+
+        # text2speech: prefer the local Afterwords adapter when the voice
+        # client is up. Otherwise fall back to the cloud OpenAI TTS tool,
+        # which is only constructed when privacy.cloud_allowed() (Task 9
+        # replaces the fallback with DeprecatedAlias).
+        if self.voice_client is not None:
+            self.text2speech = self._traceable_tool(
+                Text2Speech,
+                "Text2Speech",
+                methods_to_trace=["generate"],
+                voice_client=self.voice_client,
+            )
+        elif privacy.cloud_allowed():
             self.text2speech = self._traceable_tool(
                 tools.resolve("Text2SpeechOpenAI"),
                 "Text2SpeechOpenAI",
@@ -47,7 +71,8 @@ class LunarToolsArtManager:
             )
         else:
             self.logger.info(
-                "privacy.mode is local-only; skipping Text2SpeechOpenAI construction"
+                "privacy.mode is local-only and no VoiceClient available; "
+                "skipping Text2SpeechOpenAI construction"
             )
             self.text2speech = None
 
@@ -132,17 +157,11 @@ class LunarToolsArtManager:
             self.logger.error(f"Failed to initialize ProsodyAnalyzer: {e}")
             self.prosody_analyzer = None
 
-        try:
-            afterwords_config = config.get("afterwords", {})
-            server_url = (
-                afterwords_config.get("server_url", "http://localhost:7860")
-                if afterwords_config
-                else "http://localhost:7860"
-            )
-            self.voice_client = VoiceClient(server_url=server_url)
-        except Exception as e:
-            self.logger.error(f"Failed to initialize VoiceClient: {e}")
-            self.voice_client = None
+    @property
+    def config(self):
+        """Expose the config singleton so prototypes can call
+        ``self.manager.config.get(...)`` (used by PrototypeBase.get_config)."""
+        return config
 
     def _setup_logging(self):
         log_level_str = config.get("logging.level", "INFO")

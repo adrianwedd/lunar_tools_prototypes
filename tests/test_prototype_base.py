@@ -391,17 +391,21 @@ class TestAIPrototype:
     @pytest.fixture
     def ai_manager(self, mock_manager):
         """Manager with AI tools."""
-        mock_manager.gpt4 = Mock()
+        mock_manager.llm_backend = Mock()
+        mock_manager.gpt4 = mock_manager.llm_backend  # backward-compat alias
         mock_manager.text2speech = Mock()
         mock_manager.dalle = Mock()
         mock_manager.sdxl = Mock()
+        # image_gen doesn't exist yet (added Task 9); explicit None so
+        # getattr(..., "image_gen", None) doesn't pick up a Mock auto-attribute.
+        mock_manager.image_gen = None
         return mock_manager
 
     def test_initialization(self, ai_manager):
         """Test AI prototype initialization."""
         prototype = ConcreteAIPrototype(ai_manager)
 
-        assert prototype.llm == ai_manager.gpt4
+        assert prototype.llm == ai_manager.llm_backend
         assert prototype.text2speech == ai_manager.text2speech
         assert prototype.dalle == ai_manager.dalle
         assert prototype.sdxl == ai_manager.sdxl
@@ -410,25 +414,64 @@ class TestAIPrototype:
         """Test successful text generation."""
         prototype = ConcreteAIPrototype(ai_manager)
 
-        ai_manager.gpt4.chat.return_value = "Generated text"
+        ai_manager.llm_backend.generate.return_value = "Generated text"
 
-        result = prototype.generate_text("Test prompt", temperature=0.7)
+        result = prototype.generate_text("Test prompt")
 
         assert result == "Generated text"
-        ai_manager.gpt4.chat.assert_called_once_with("Test prompt", temperature=0.7)
+        ai_manager.llm_backend.generate.assert_called_once_with(
+            "Test prompt", system_prompt=None
+        )
+
+    def test_generate_text_passes_system_prompt(self, ai_manager):
+        """system_prompt kwarg is forwarded to the backend."""
+        prototype = ConcreteAIPrototype(ai_manager)
+
+        ai_manager.llm_backend.generate.return_value = "ok"
+
+        result = prototype.generate_text("Test prompt", system_prompt="You are terse.")
+
+        assert result == "ok"
+        ai_manager.llm_backend.generate.assert_called_once_with(
+            "Test prompt", system_prompt="You are terse."
+        )
+
+    def test_generate_text_drops_unsupported_kwargs(self, ai_manager):
+        """Unsupported kwargs (e.g. temperature) are dropped, not raised."""
+        prototype = ConcreteAIPrototype(ai_manager)
+
+        ai_manager.llm_backend.generate.return_value = "ok"
+
+        result = prototype.generate_text("Test prompt", temperature=0.5)
+
+        assert result == "ok"
+        ai_manager.llm_backend.generate.assert_called_once_with(
+            "Test prompt", system_prompt=None
+        )
 
     def test_generate_text_failure(self, ai_manager):
         """Test text generation failure."""
         prototype = ConcreteAIPrototype(ai_manager)
 
-        ai_manager.gpt4.chat.side_effect = Exception("API error")
+        ai_manager.llm_backend.generate.side_effect = Exception("API error")
 
         result = prototype.generate_text("Test prompt")
 
         assert result is None
 
-    def test_generate_image_dalle(self, ai_manager):
-        """Test image generation with DALL-E."""
+    def test_generate_image_uses_image_gen_when_available(self, ai_manager):
+        """Test image generation prefers manager.image_gen when present."""
+        ai_manager.image_gen = Mock()
+        ai_manager.image_gen.generate.return_value = "/path/to/image.jpg"
+        prototype = ConcreteAIPrototype(ai_manager)
+
+        result = prototype.generate_image("Test prompt")
+
+        assert result == "/path/to/image.jpg"
+        ai_manager.image_gen.generate.assert_called_once_with("Test prompt")
+
+    def test_generate_image_dalle_fallback(self, ai_manager):
+        """Test image generation falls back to the legacy dalle tool."""
         prototype = ConcreteAIPrototype(ai_manager)
 
         ai_manager.dalle.generate.return_value = "/path/to/image.jpg"
@@ -438,8 +481,8 @@ class TestAIPrototype:
         assert result == "/path/to/image.jpg"
         ai_manager.dalle.generate.assert_called_once_with("Test prompt")
 
-    def test_generate_image_sdxl(self, ai_manager):
-        """Test image generation with SDXL."""
+    def test_generate_image_sdxl_fallback(self, ai_manager):
+        """Test image generation falls back to the legacy sdxl tool."""
         prototype = ConcreteAIPrototype(ai_manager)
 
         ai_manager.sdxl.generate.return_value = "/path/to/image.jpg"
@@ -450,16 +493,17 @@ class TestAIPrototype:
         ai_manager.sdxl.generate.assert_called_once_with("Test prompt")
 
     def test_generate_image_unavailable_generator(self, ai_manager):
-        """Test image generation with unavailable generator."""
+        """Test image generation raises when no generator is available."""
+        from src.lunar_tools_art.exceptions import AIServiceError
+
         prototype = ConcreteAIPrototype(ai_manager)
 
         # Remove dalle from manager
         delattr(ai_manager, "dalle")
         prototype.dalle = None
 
-        result = prototype.generate_image("Test prompt", generator="dalle")
-
-        assert result is None
+        with pytest.raises(AIServiceError):
+            prototype.generate_image("Test prompt", generator="dalle")
 
     def test_generate_image_failure(self, ai_manager):
         """Test image generation failure."""

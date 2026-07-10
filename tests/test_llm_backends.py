@@ -5,6 +5,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 import toml
 
+from src.lunar_tools_art.exceptions import CloudDisabledError
 from src.lunar_tools_art.llm_backends import (
     ClaudeBackend,
     LLMBackend,
@@ -14,6 +15,17 @@ from src.lunar_tools_art.llm_backends import (
     OpenRouterBackend,
     create_backend,
 )
+
+
+@pytest.fixture(autouse=True)
+def _allow_cloud():
+    """Most of these tests exercise cloud-backend wiring, not the privacy
+    gate itself; allow cloud egress by default so they read as before.
+    Privacy-gate-specific tests below override this explicitly."""
+    with patch(
+        "src.lunar_tools_art.llm_backends.privacy.cloud_allowed", return_value=True
+    ):
+        yield
 
 
 def test_llm_backend_is_abstract():
@@ -208,3 +220,35 @@ def test_manager_has_llm_backend():
         mock_create.return_value = OllamaLocalBackend(model="test")
         manager = LunarToolsArtManager()
         assert hasattr(manager, "llm_backend")
+
+
+def test_create_backend_claude_blocked_when_cloud_disallowed():
+    with patch(
+        "src.lunar_tools_art.llm_backends.privacy.cloud_allowed", return_value=False
+    ):
+        config = {
+            "provider": "claude",
+            "claude": {
+                "model": "claude-sonnet-4-20250514",
+                "api_key_env": "ANTHROPIC_API_KEY",  # pragma: allowlist secret
+            },
+        }
+        with pytest.raises(CloudDisabledError):
+            create_backend(config)
+
+
+def test_create_backend_mlx(monkeypatch):
+    import sys
+    import types
+
+    fake_mlx_lm = types.ModuleType("mlx_lm")
+    fake_mlx_lm.load = MagicMock(return_value=("model", "tokenizer"))
+    fake_mlx_lm.generate = MagicMock(return_value="mlx response")
+    monkeypatch.setitem(sys.modules, "mlx_lm", fake_mlx_lm)
+
+    from src.lunar_tools_art.llm_backends import MLXLocalBackend
+
+    config = {"provider": "mlx", "mlx": {"model": "m"}}
+    backend = create_backend(config)
+    assert isinstance(backend, MLXLocalBackend)
+    assert backend.generate("hi") == "mlx response"
