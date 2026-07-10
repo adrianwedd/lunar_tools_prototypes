@@ -1,4 +1,5 @@
 import logging
+import queue
 import time
 
 
@@ -40,3 +41,21 @@ def run_until_quit(callback, lunar_tools_art_manager, fps=30):
         lunar_tools_art_manager.logger.info("Ctrl+C detected. Stopping loop.")
     finally:
         loop_control.stop()
+
+
+class MainLoopQueue:
+    """Thread-safe handoff: background threads post callables, main loop drains them."""
+
+    def __init__(self):
+        self._q = queue.Queue()
+
+    def post(self, fn, *args):
+        self._q.put((fn, args))
+
+    def drain(self, max_items=10):
+        for _ in range(max_items):
+            try:
+                fn, args = self._q.get_nowait()
+            except queue.Empty:
+                return
+            fn(*args)

@@ -42,6 +42,27 @@ class ConfigurationError(LunarToolsArtError):
     pass
 
 
+class HardwareUnavailableError(LunarToolsArtError):
+    """A required hardware device (mic, camera, MIDI) is absent or failed to open."""
+
+    pass
+
+
+class InferenceError(LunarToolsArtError):
+    """A local model (MLX, whisper, mflux) failed during load or inference."""
+
+    pass
+
+
+class CloudDisabledError(LunarToolsArtError):
+    """A cloud backend was requested while privacy.mode forbids cloud egress."""
+
+    pass
+
+
+HARDWARE_EXCEPTIONS = (HardwareUnavailableError,)
+
+
 def handle_ai_service_exceptions(
     logger: logging.Logger, service_name: str, fallback_value: Any = None
 ):
@@ -179,6 +200,31 @@ class ExceptionHandler:
         if exc_type is KeyboardInterrupt:
             self.logger.info(f"{self.prototype_name} interrupted by user")
             return False  # Let KeyboardInterrupt propagate
+
+        if exc_type is CloudDisabledError:
+            self.consecutive_errors += 1
+            self.logger.warning(
+                f"{self.prototype_name} cloud disabled ({self.consecutive_errors}/{self.max_consecutive_errors}): {exc_value}"
+            )
+            if self.consecutive_errors >= self.max_consecutive_errors:
+                self.logger.critical(
+                    f"{self.prototype_name} reached maximum consecutive errors, shutting down"
+                )
+                return False
+            return self.continue_on_error
+
+        if exc_type in (HardwareUnavailableError, InferenceError):
+            self.consecutive_errors += 1
+            self.logger.error(
+                f"{self.prototype_name} error ({self.consecutive_errors}/{self.max_consecutive_errors}): {exc_value}",
+                exc_info=True,
+            )
+            if self.consecutive_errors >= self.max_consecutive_errors:
+                self.logger.critical(
+                    f"{self.prototype_name} reached maximum consecutive errors, shutting down"
+                )
+                return False
+            return self.continue_on_error
 
         # Handle other exceptions
         self.consecutive_errors += 1
