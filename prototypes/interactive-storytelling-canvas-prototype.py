@@ -1,7 +1,5 @@
 import time
 
-from utils import record_and_transcribe_speech
-
 
 class InteractiveStorytellingCanvas:
     def __init__(
@@ -14,7 +12,9 @@ class InteractiveStorytellingCanvas:
         self.renderer = self.lunar_tools_art_manager.renderer
         self.speech2text = self.lunar_tools_art_manager.speech2text
         self.llm = self.lunar_tools_art_manager.gpt4
-        self.glif_api = self.lunar_tools_art_manager.glif_api
+        # glif_api (image-visualization backend) is not part of the current
+        # tools layer; visualize_story() degrades gracefully when absent.
+        self.glif_api = getattr(self.lunar_tools_art_manager, "glif_api", None)
         self.logger = self.lunar_tools_art_manager.logger
         self.story = ""  # For very long stories, consider implementing summarization to avoid GPT-4 context window limits.
         self.glif_id = glif_id  # Configurable Glif ID for story visualization
@@ -22,7 +22,7 @@ class InteractiveStorytellingCanvas:
 
     def get_user_input(self):
         self.logger.info("Tell me what happens next in the story...")
-        user_input = record_and_transcribe_speech(self.speech2text, duration=10)
+        user_input = self.speech2text.transcribe(duration=10)
         return user_input
 
     def generate_story_continuation(self, user_input):
@@ -40,7 +40,7 @@ class InteractiveStorytellingCanvas:
     def visualize_story(self):
         try:
             inputs = {"node_6": self.story}  # Adjust node name as per your Glif setup
-            result = self.lunar_tools_manager.glif_api.run_glif(self.glif_id, inputs)
+            result = self.glif_api.run_glif(self.glif_id, inputs)
             if "image" in result:
                 return result["image"]
             else:
