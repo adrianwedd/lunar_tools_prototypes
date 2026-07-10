@@ -248,6 +248,49 @@ class QueuePostingPrototype(PrototypeBase):
         pass
 
 
+class ConcurrentQueuePostingPrototype(PrototypeBase):
+    """Starts a non-joined worker thread in setup() that waits for the main
+    loop's first update() to begin, then posts to manager.main_queue while
+    run()'s loop is actively iterating -- genuine concurrent posting, not a
+    post-then-join-before-run scenario."""
+
+    def __init__(self, *args, flag=None, update_started=None, posted=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.flag = flag
+        self.update_started = update_started
+        self.posted = posted
+        self.iterations = 0
+        self.thread = None
+        self.loop_delay = 0
+
+    def setup(self):
+        import threading
+
+        def poster():
+            # Wait until the main loop has begun iterating (i.e. update()
+            # has been called at least once) before posting, so the post
+            # genuinely races with the running loop instead of happening
+            # before it starts.
+            assert self.update_started.wait(timeout=5), "update() never started"
+            self.manager.main_queue.post(self.flag.append, 1)
+            self.posted.set()
+
+        self.thread = threading.Thread(target=poster)
+        self.thread.start()
+
+    def update(self):
+        self.iterations += 1
+        self.update_started.set()
+
+    def should_exit(self):
+        # Exit once the posted flag has been drained, capped so the test
+        # can't hang if draining somehow fails.
+        return bool(self.flag) or self.iterations >= 200
+
+    def cleanup(self):
+        pass
+
+
 class TestMainQueueDraining:
     def test_run_drains_main_queue_posted_during_setup(self, mock_manager):
         mock_manager.main_queue = MainLoopQueue()
@@ -258,6 +301,31 @@ class TestMainQueueDraining:
         prototype.run()
 
         assert flag == [1]
+
+    def test_run_drains_main_queue_posted_concurrently_during_loop(self, mock_manager):
+        """A worker thread posts to manager.main_queue WHILE run()'s loop is
+        actively iterating (not before it starts), exercising genuine
+        concurrent posting rather than a synchronous post-then-join."""
+        import threading
+
+        mock_manager.main_queue = MainLoopQueue()
+        flag = []
+        update_started = threading.Event()
+        posted = threading.Event()
+        prototype = ConcurrentQueuePostingPrototype(
+            mock_manager,
+            flag=flag,
+            update_started=update_started,
+            posted=posted,
+        )
+
+        prototype.run()
+
+        assert posted.wait(timeout=5), "worker thread never posted"
+        assert flag == [1]
+        prototype.thread.join(timeout=5)
+        assert not prototype.thread.is_alive()
+        assert prototype.iterations < 200, "loop hit iteration cap instead of draining"
 
 
 class TestInteractivePrototype:
