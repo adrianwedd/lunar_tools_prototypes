@@ -1,25 +1,12 @@
 import logging
 import os
 
+from . import privacy, tools
 from .config import config
 from .emotion import EmotionDetector
 from .llm_backends import create_backend
 from .prosody import ProsodyAnalyzer
-from .tools import (
-    SDXL_LCM,
-    SDXL_TURBO,
-    AudioRecorder,
-    Dalle3ImageGenerator,
-    FluxImageGenerator,
-    KeyboardInput,
-    MidiInput,
-    Renderer,
-    SoundPlayer,
-    Speech2Text,
-    Text2SpeechOpenAI,
-    WebCam,
-    ZMQPairEndpoint,
-)
+from .tools import FluxImageGenerator
 from .tracing import traceable
 from .voice_client import VoiceClient
 
@@ -31,7 +18,7 @@ class LunarToolsArtManager:
         # Initialize tools using configuration
         renderer_config = config.get("renderer", {"width": 1920, "height": 1080})
         self.renderer = self._traceable_tool(
-            Renderer,
+            tools.resolve("Renderer"),
             "Renderer",
             width=renderer_config["width"],
             height=renderer_config["height"],
@@ -42,42 +29,76 @@ class LunarToolsArtManager:
         self.gpt4 = None
 
         self.speech2text = self._traceable_tool(
-            Speech2Text, "Speech2Text", methods_to_trace=["transcribe"]
+            tools.resolve("Speech2Text"), "Speech2Text", methods_to_trace=["transcribe"]
         )
-        self.text2speech = self._traceable_tool(
-            Text2SpeechOpenAI, "Text2SpeechOpenAI", methods_to_trace=["generate"]
-        )
+
+        # Cloud-calling tools: only constructed when privacy.cloud_allowed().
+        # Otherwise the attribute is None with one INFO log (Task 9 replaces
+        # these with DeprecatedAlias).
+        if privacy.cloud_allowed():
+            self.text2speech = self._traceable_tool(
+                tools.resolve("Text2SpeechOpenAI"),
+                "Text2SpeechOpenAI",
+                methods_to_trace=["generate"],
+            )
+        else:
+            self.logger.info(
+                "privacy.mode is local-only; skipping Text2SpeechOpenAI construction"
+            )
+            self.text2speech = None
+
         self.audio_recorder = self._traceable_tool(
-            AudioRecorder,
+            tools.resolve("AudioRecorder"),
             "AudioRecorder",
             methods_to_trace=["start_recording", "stop_recording"],
         )
         self.sound_player = self._traceable_tool(
-            SoundPlayer, "SoundPlayer", methods_to_trace=["play_audio"]
+            tools.resolve("SoundPlayer"), "SoundPlayer", methods_to_trace=["play_audio"]
         )
         self.keyboard_input = self._traceable_tool(
-            KeyboardInput, "KeyboardInput", methods_to_trace=["is_key_pressed"]
+            tools.resolve("KeyboardInput"),
+            "KeyboardInput",
+            methods_to_trace=["is_key_pressed"],
         )
         self.webcam = self._traceable_tool(
-            WebCam, "WebCam", methods_to_trace=["get_img"]
+            tools.resolve("WebCam"), "WebCam", methods_to_trace=["get_img"]
         )
-        self.sdxl_turbo = self._traceable_tool(
-            SDXL_TURBO, "SDXL_TURBO", methods_to_trace=["generate"]
-        )
-        self.dalle3 = self._traceable_tool(
-            Dalle3ImageGenerator, "Dalle3ImageGenerator", methods_to_trace=["generate"]
-        )
+
+        if privacy.cloud_allowed():
+            self.sdxl_turbo = self._traceable_tool(
+                tools.resolve("SDXL_TURBO"), "SDXL_TURBO", methods_to_trace=["generate"]
+            )
+            self.dalle3 = self._traceable_tool(
+                tools.resolve("Dalle3ImageGenerator"),
+                "Dalle3ImageGenerator",
+                methods_to_trace=["generate"],
+            )
+            self.sdxl_lcm = self._traceable_tool(
+                tools.resolve("SDXL_LCM"), "SDXL_LCM", methods_to_trace=["generate"]
+            )
+        else:
+            self.logger.info(
+                "privacy.mode is local-only; skipping SDXL_TURBO, "
+                "Dalle3ImageGenerator, SDXL_LCM construction"
+            )
+            self.sdxl_turbo = None
+            self.dalle3 = None
+            self.sdxl_lcm = None
+
+        # FluxImageGenerator stays a stub until Task 9 replaces the `flux`
+        # attribute; not privacy-gated in this transition window.
         self.flux = self._traceable_tool(
             FluxImageGenerator, "FluxImageGenerator", methods_to_trace=["generate"]
         )
-        self.sdxl_lcm = self._traceable_tool(
-            SDXL_LCM, "SDXL_LCM", methods_to_trace=["generate"]
-        )
         self.zmq_pair_endpoint = self._traceable_tool(
-            ZMQPairEndpoint, "ZMQPairEndpoint", methods_to_trace=["send", "receive"]
+            tools.resolve("ZMQPairEndpoint"),
+            "ZMQPairEndpoint",
+            methods_to_trace=["send", "receive"],
         )
         self.midi_input = self._traceable_tool(
-            MidiInput, "MidiInput", methods_to_trace=["get_latest_message"]
+            tools.resolve("MidiInput"),
+            "MidiInput",
+            methods_to_trace=["get_latest_message"],
         )
 
         # New infrastructure components

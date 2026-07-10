@@ -126,19 +126,3 @@ class MidiInput:
 
     def get(self, *args, **kwargs):
         return 0.0
-
-
-class GPT4:
-    def __init__(self, *args, **kwargs):
-        pass
-
-    def generate(self, *args, **kwargs):
-        pass
-
-
-class Ollama:
-    def __init__(self, *args, **kwargs):
-        pass
-
-    def generate(self, *args, **kwargs):
-        pass
