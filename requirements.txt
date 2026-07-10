@@ -18,6 +18,8 @@ requests
 httpx
 numpy
 opencv-python
+toml
+pillow
 
 # extra: vision
 opencv-python>=4.10,<5
@@ -49,6 +51,7 @@ pynput>=1.7
 # extra: dev
 pytest>=8
 pytest-mock>=3.14
+pytest-cov>=4
 responses>=0.25
 pip-tools
 pre-commit

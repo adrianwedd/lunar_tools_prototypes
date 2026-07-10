@@ -8,6 +8,7 @@ monkeypatch ``sys.modules["sounddevice"]`` before it is imported here.
 
 import logging
 import os
+import time
 
 from ..exceptions import HardwareUnavailableError
 from ..utils import create_secure_temp_file
@@ -28,6 +29,7 @@ class AudioRecorder:
         self._degraded = False
         self._active_buffer = None
         self._active_path = None
+        self._active_start_time = None
 
     def _check_device(self):
         """Raise HardwareUnavailableError (once) if no input device exists.
@@ -92,6 +94,7 @@ class AudioRecorder:
         self._active_path = self._resolve_path(file_path)
         max_frames = int(MAX_RECORD_SECONDS * self.samplerate)
         self._active_buffer = sd.rec(max_frames, samplerate=self.samplerate, channels=1)
+        self._active_start_time = time.monotonic()
 
     def stop_recording(self) -> str:
         """Stop the active recording and write it to disk; returns the path."""
@@ -105,10 +108,13 @@ class AudioRecorder:
             sd.stop()
 
         path = self._active_path
-        sf.write(path, self._active_buffer, self.samplerate)
+        elapsed = time.monotonic() - self._active_start_time
+        n_frames = min(max(int(elapsed * self.samplerate), 0), len(self._active_buffer))
+        sf.write(path, self._active_buffer[:n_frames], self.samplerate)
 
         self._active_buffer = None
         self._active_path = None
+        self._active_start_time = None
         return path
 
 

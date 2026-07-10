@@ -48,6 +48,26 @@ def test_start_stop_roundtrip(tmp_path, monkeypatch):
     assert out == target
 
 
+def test_stop_recording_truncates_to_elapsed_time(tmp_path, monkeypatch):
+    _fake_sd(monkeypatch)
+    import lunar_tools_art.tools.audio as audio_mod
+    from lunar_tools_art.tools.audio import AudioRecorder
+
+    fake_times = iter([100.0, 100.5])  # start, then stop => 0.5s elapsed
+    monkeypatch.setattr(audio_mod.time, "monotonic", lambda: next(fake_times))
+
+    rec = AudioRecorder(output_dir=str(tmp_path))
+    target = str(tmp_path / "short_take.wav")
+    rec.start_recording(target)
+    out = rec.stop_recording()
+
+    import soundfile as sf
+
+    data, sr = sf.read(out)
+    assert sr == rec.samplerate
+    assert len(data) == int(0.5 * rec.samplerate)
+
+
 def test_no_device_raises_then_degrades(tmp_path, monkeypatch, caplog):
     _fake_sd(monkeypatch, devices=())
     from lunar_tools_art.exceptions import HardwareUnavailableError

@@ -462,7 +462,10 @@ class TestAIPrototype:
     def test_generate_image_uses_image_gen_when_available(self, ai_manager):
         """Test image generation prefers manager.image_gen when present."""
         ai_manager.image_gen = Mock()
-        ai_manager.image_gen.generate.return_value = "/path/to/image.jpg"
+        ai_manager.image_gen.generate.return_value = (
+            "/path/to/image.jpg",
+            {"prompt": "Test prompt"},
+        )
         prototype = ConcreteAIPrototype(ai_manager)
 
         result = prototype.generate_image("Test prompt")

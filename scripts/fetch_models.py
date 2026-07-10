@@ -30,7 +30,7 @@ FERPLUS_URL = (
 # value. The script will refuse to install the model on a mismatch.
 # On first trusted download, also verify the pinned commit URL path is reachable;
 # if the path 404s, update the commit SHA and path accordingly.
-FERPLUS_SHA256 = "0000000000000000000000000000000000000000000000000000000000000"
+FERPLUS_SHA256 = "0" * 64
 FERPLUS_FILENAME = "emotion-ferplus-8.onnx"
 
 MODELS = [
@@ -87,6 +87,17 @@ def fetch(model: dict) -> bool:
 
 
 def main() -> int:
+    for model in MODELS:
+        if model["sha256"] == "0" * 64:
+            print(
+                f"[error] {model['name']}: checksum is still the placeholder "
+                f"('{model['sha256']}'). Download the file via a trusted "
+                "channel, compute `shasum -a 256 <file>`, and set the real "
+                "checksum in scripts/fetch_models.py before running this "
+                "script."
+            )
+            return 1
+
     ok = True
     for model in MODELS:
         ok = fetch(model) and ok

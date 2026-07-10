@@ -1,5 +1,15 @@
 """Tool resolution: real hardware/cloud classes, swapped for deterministic
 fakes when LUNAR_HEADLESS=1 (see headless.py).
+
+Error contract for hardware-backed tools in this package: a tool raises
+once, on its *first* hard failure (e.g. no input device, no output device),
+via a specific exception (see ``exceptions.HardwareUnavailableError``). That
+failure also flips the tool into a "degraded" state. After that single raise,
+further calls to the same degraded method are non-raising: they log a
+warning once and then return ``None`` (or otherwise no-op) on every
+subsequent call, rather than raising or logging repeatedly. Callers should
+treat a ``None`` return from a degraded tool as "hardware unavailable," not
+as "no data this call."
 """
 
 from . import headless as _hl
@@ -8,7 +18,6 @@ from ._legacy_cloud import (  # noqa: F401
     SDXL_TURBO,
     Dalle3ImageGenerator,
     FluxImageGenerator,
-    Text2SpeechOpenAI,
 )
 from .audio import AudioRecorder, SoundPlayer  # noqa: F401
 from .camera import WebCam  # noqa: F401

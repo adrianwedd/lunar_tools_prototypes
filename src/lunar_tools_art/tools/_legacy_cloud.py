@@ -1,11 +1,3 @@
-class Text2SpeechOpenAI:
-    def __init__(self, *args, **kwargs):
-        pass
-
-    def generate(self, *args, **kwargs):
-        pass
-
-
 class SDXL_TURBO:
     def __init__(self, *args, **kwargs):
         pass

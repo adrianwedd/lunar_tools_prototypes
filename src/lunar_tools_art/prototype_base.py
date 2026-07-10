@@ -9,7 +9,7 @@ import logging
 import time
 from abc import ABC, abstractmethod
 from contextlib import contextmanager
-from typing import Any, Optional
+from typing import Any
 
 from .exceptions import AIServiceError, ExceptionHandler
 from .manager import LunarToolsArtManager
@@ -266,7 +266,7 @@ class InteractivePrototype(PrototypeBase):
 
         self.logger.info("Interactive prototype initialized")
 
-    def get_user_speech(self, timeout: float = 5.0) -> Optional[str]:
+    def get_user_speech(self, timeout: float = 5.0) -> str | None:
         """Capture and transcribe user speech.
 
         Args:
@@ -319,7 +319,7 @@ class AIPrototype(PrototypeBase):
 
         self.logger.info("AI prototype initialized")
 
-    def generate_text(self, prompt: str, **kwargs) -> Optional[str]:
+    def generate_text(self, prompt: str, **kwargs) -> str | None:
         """Generate text using the configured LLM.
 
         Args:
@@ -342,7 +342,7 @@ class AIPrototype(PrototypeBase):
             self.logger.error(f"Text generation failed: {e}")
             return None
 
-    def generate_image(self, prompt: str, generator: str = "dalle") -> Optional[str]:
+    def generate_image(self, prompt: str, generator: str = "dalle") -> str | None:
         """Generate image using specified generator.
 
         Args:
@@ -357,7 +357,8 @@ class AIPrototype(PrototypeBase):
 
             image_gen = getattr(self.manager, "image_gen", None)
             if image_gen is not None:
-                return image_gen.generate(prompt)
+                path, _meta = image_gen.generate(prompt)
+                return path
 
             # Fallback (pre-Task 9): use the named legacy generator if present.
             if generator == "dalle" and self.dalle:

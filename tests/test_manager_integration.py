@@ -5,13 +5,14 @@ tools layer, `image_gen`/`dalle3` behave per the unified ImageGenerator
 contract, `llm_backend`/`gpt4` alias correctly, and `config` is reachable.
 """
 
-import os
-
 import pytest
 
-os.environ.setdefault("LUNAR_HEADLESS", "1")
+from lunar_tools_art.manager import LunarToolsArtManager
 
-from lunar_tools_art.manager import LunarToolsArtManager  # noqa: E402
+
+@pytest.fixture(autouse=True)
+def _headless_env(monkeypatch):
+    monkeypatch.setenv("LUNAR_HEADLESS", "1")
 
 
 @pytest.fixture

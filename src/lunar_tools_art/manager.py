@@ -64,16 +64,11 @@ class LunarToolsArtManager:
                 methods_to_trace=["generate"],
                 voice_client=self.voice_client,
             )
-        elif privacy.cloud_allowed():
-            self.text2speech = self._traceable_tool(
-                tools.resolve("Text2SpeechOpenAI"),
-                "Text2SpeechOpenAI",
-                methods_to_trace=["generate"],
-            )
         else:
-            self.logger.info(
-                "privacy.mode is local-only and no VoiceClient available; "
-                "skipping Text2SpeechOpenAI construction"
+            self.logger.warning(
+                "cloud TTS fallback not implemented; text2speech disabled "
+                "(no VoiceClient available; privacy.cloud_allowed()=%s)",
+                privacy.cloud_allowed(),
             )
             self.text2speech = None
 
