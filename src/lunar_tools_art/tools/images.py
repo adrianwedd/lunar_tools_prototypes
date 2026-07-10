@@ -18,6 +18,7 @@ matching the contract 14 legacy prototypes already unpack as
 
 import logging
 import os
+import shutil
 import threading
 import time
 import warnings
@@ -57,7 +58,10 @@ class ImageGenerator:
         self.model = model
         self.quantize = quantize
         self.output_dir = output_dir
-        os.makedirs(self.output_dir, exist_ok=True)
+        # Note: output_dir is NOT created here. It's created lazily, right
+        # before a successful generation is written into it, so importing
+        # or instantiating this class (e.g. via manager wiring in headless
+        # test runs) never touches the working directory.
 
         if backend in ("openai", "replicate"):
             privacy.require_cloud(f"ImageGenerator(backend={backend!r})")
@@ -101,12 +105,37 @@ class ImageGenerator:
 
         threading.Thread(target=_worker, daemon=True).start()
 
+    # -- output handling --------------------------------------------------
+
+    @staticmethod
+    def _cleanup(tmp_path):
+        """Best-effort removal of an orphaned tmp file after a failed
+        generation, so `InferenceError` never leaves a stray artifact."""
+        try:
+            if tmp_path and os.path.exists(tmp_path):
+                os.remove(tmp_path)
+        except OSError:
+            pass
+
+    def _finalize(self, tmp_path):
+        """Move a successfully generated file from system temp into
+        ``self.output_dir``, creating the directory lazily (only now, on
+        success) rather than eagerly in ``__init__``."""
+        os.makedirs(self.output_dir, exist_ok=True)
+        final_path = os.path.join(self.output_dir, os.path.basename(tmp_path))
+        shutil.move(tmp_path, final_path)
+        return final_path
+
     # -- fake -----------------------------------------------------------
 
     def _generate_fake(self, prompt, size, seed):
+        # Deterministic, dependency-free backend used in headless mode /
+        # tests. Always writes to the system temp dir only — never touches
+        # self.output_dir — so headless/test runs can never pollute the
+        # repo working directory.
         from PIL import Image
 
-        path = create_secure_temp_file(suffix=".png", directory=self.output_dir)
+        path = create_secure_temp_file(suffix=".png")
         Image.new("RGB", (1, 1)).save(path)
         return path, {}
 
@@ -117,10 +146,17 @@ class ImageGenerator:
             self._mflux_backend = _MfluxBackend(
                 model=self.model, quantize=self.quantize
             )
-        path = create_secure_temp_file(suffix=".png", directory=self.output_dir)
-        with INFERENCE_LOCK:
-            self._mflux_backend.generate(prompt, size=size, seed=seed, out_path=path)
-        return path, {}
+        tmp_path = create_secure_temp_file(suffix=".png")
+        try:
+            with INFERENCE_LOCK:
+                used_seed = self._mflux_backend.generate(
+                    prompt, size=size, seed=seed, out_path=tmp_path
+                )
+        except Exception:
+            self._cleanup(tmp_path)
+            raise
+        path = self._finalize(tmp_path)
+        return path, {"seed": used_seed}
 
     # -- openai (DALL-E) ---------------------------------------------------
 
@@ -144,8 +180,13 @@ class ImageGenerator:
         except Exception as e:
             raise InferenceError(f"OpenAI image generation failed: {e}") from e
 
-        path = create_secure_temp_file(suffix=".png", directory=self.output_dir)
-        self._download_to(image_url, path)
+        tmp_path = create_secure_temp_file(suffix=".png")
+        try:
+            self._download_to(image_url, tmp_path)
+        except Exception:
+            self._cleanup(tmp_path)
+            raise
+        path = self._finalize(tmp_path)
         return path, {}
 
     # -- replicate -----------------------------------------------------
@@ -172,8 +213,13 @@ class ImageGenerator:
         except Exception as e:
             raise InferenceError(f"Replicate image generation failed: {e}") from e
 
-        path = create_secure_temp_file(suffix=".png", directory=self.output_dir)
-        self._download_to(str(image_url), path)
+        tmp_path = create_secure_temp_file(suffix=".png")
+        try:
+            self._download_to(str(image_url), tmp_path)
+        except Exception:
+            self._cleanup(tmp_path)
+            raise
+        path = self._finalize(tmp_path)
         return path, {}
 
     @staticmethod
@@ -197,11 +243,6 @@ class _MfluxBackend:
     dev environment).
     """
 
-    _MODEL_ALIASES = {
-        "schnell": "schnell",
-        "dev": "dev",
-    }
-
     def __init__(self, model: str = "schnell", quantize: int = 4):
         self.model = model
         self.quantize = quantize
@@ -217,8 +258,7 @@ class _MfluxBackend:
                 "mflux is not installed; install it or switch [image].backend"
             ) from e
 
-        model_name = self._MODEL_ALIASES.get(self.model, self.model)
-        self._flux = Flux1.from_name(model_name, quantize=self.quantize)
+        self._flux = Flux1.from_name(self.model, quantize=self.quantize)
         return self._flux
 
     def generate(self, prompt, size, seed, out_path):

@@ -49,6 +49,17 @@ build-backend = "setuptools.build_meta"
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.pytest.ini_options]
+filterwarnings = [
+    # DeprecatedAlias (src/lunar_tools_art/tools/images.py) intentionally
+    # warns at legacy call sites (SDXL_TURBO, Dalle3ImageGenerator, etc.)
+    # every time a prototype uses them, by design. That's real, wanted
+    # runtime signal — but it's noise across the ~14 legacy smoke-test call
+    # sites. The dedicated alias unit tests assert it directly via
+    # `pytest.warns`, which is unaffected by this filter.
+    "ignore:.* is deprecated; use manager\\.image_gen directly:DeprecationWarning",
+]
+
 [tool.ruff]
 target-version = "py39"
 line-length = 88

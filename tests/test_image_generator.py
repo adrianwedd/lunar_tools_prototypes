@@ -146,3 +146,53 @@ def test_mflux_backend_generates_with_mocked_module(tmp_path, monkeypatch):
     assert path.endswith(".png")
     assert meta["backend"] == "mflux"
     assert meta["seed"] == 3
+
+
+def test_mflux_backend_propagates_actual_seed_when_none(tmp_path, monkeypatch):
+    """seed=None should not be lost: mflux computes an actual seed at
+    generation time, and it must show up in metadata rather than `None`."""
+    import sys
+    import types
+
+    import numpy as np
+    from PIL import Image
+
+    fake_mflux = types.ModuleType("mflux")
+
+    class FakeConfig:
+        def __init__(self, num_inference_steps=4, height=1024, width=1024):
+            self.num_inference_steps = num_inference_steps
+            self.height = height
+            self.width = width
+
+    consumed_seeds = []
+
+    class FakeFlux1:
+        @classmethod
+        def from_name(cls, model_name, quantize=None):
+            return cls()
+
+        def generate_image(self, seed, prompt, config):
+            consumed_seeds.append(seed)
+            arr = np.zeros((config.height, config.width, 3), dtype=np.uint8)
+            img = Image.fromarray(arr)
+
+            class Result:
+                def save(self_inner, path):
+                    img.save(path)
+
+            return Result()
+
+    fake_mflux.Flux1 = FakeFlux1
+    fake_mflux.Config = FakeConfig
+    monkeypatch.setitem(sys.modules, "mflux", fake_mflux)
+
+    from lunar_tools_art.tools.images import ImageGenerator
+
+    gen = ImageGenerator(
+        backend="mflux", model="schnell", quantize=4, output_dir=str(tmp_path)
+    )
+    path, meta = gen.generate("a moon garden", size=(64, 64), seed=None)
+    assert path.endswith(".png")
+    assert consumed_seeds and isinstance(consumed_seeds[0], int)
+    assert meta["seed"] == consumed_seeds[0]
