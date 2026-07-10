@@ -32,12 +32,11 @@ class AudioRecorder:
     def _check_device(self):
         """Raise HardwareUnavailableError (once) if no input device exists.
 
-        After the first failure, further calls warn-once and no-op (return
-        True to signal "already degraded, don't proceed").
+        After the first failure, further calls warn-once and no-op.
         """
         if self._degraded:
             logger.debug("AudioRecorder is degraded; skipping hardware call.")
-            return True
+            return
 
         import sounddevice as sd
 
@@ -47,7 +46,6 @@ class AudioRecorder:
             self._degraded = True
             logger.warning("No audio input device available; AudioRecorder degraded.")
             raise HardwareUnavailableError("No audio input device available")
-        return False
 
     def _resolve_path(self, file_path=None):
         if file_path:
@@ -63,10 +61,7 @@ class AudioRecorder:
             logger.debug("AudioRecorder degraded; record() is a no-op.")
             return None
 
-        try:
-            self._check_device()
-        except HardwareUnavailableError:
-            raise
+        self._check_device()
 
         import sounddevice as sd
         import soundfile as sf
@@ -90,10 +85,7 @@ class AudioRecorder:
             logger.debug("AudioRecorder degraded; start_recording() is a no-op.")
             return None
 
-        try:
-            self._check_device()
-        except HardwareUnavailableError:
-            raise
+        self._check_device()
 
         import sounddevice as sd
 
@@ -142,9 +134,10 @@ class SoundPlayer:
 
         try:
             sd.play(data, samplerate=samplerate, blocking=blocking)
-        except Exception as e:  # pragma: no cover - defensive, hw-specific
+        except (sd.PortAudioError, OSError) as e:
             self._degraded = True
             logger.warning(f"Audio playback unavailable; SoundPlayer degraded: {e}")
+            raise HardwareUnavailableError("Audio playback device unavailable") from e
         return None
 
     # 8 prototypes call `play_sound` — kept as an alias with blocking=True default.
