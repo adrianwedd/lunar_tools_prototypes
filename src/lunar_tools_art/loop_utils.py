@@ -29,9 +29,13 @@ def run_until_quit(callback, lunar_tools_art_manager, fps=30):
         f"Starting loop at {fps} FPS. Press 'q' to quit or Ctrl+C."
     )
 
+    main_queue = getattr(lunar_tools_art_manager, "main_queue", None)
+
     try:
         while loop_control.is_running():
             start_time = time.time()
+            if main_queue is not None:
+                main_queue.drain()
             callback()
             elapsed_time = time.time() - start_time
             sleep_time = delay - elapsed_time

@@ -135,7 +135,12 @@ class PrototypeBase(ABC):
                 self.setup()
 
                 # Main loop
-                while self._running and not self.should_exit():
+                main_queue = getattr(self.manager, "main_queue", None)
+                while True:
+                    if main_queue is not None:
+                        main_queue.drain()
+                    if not self._running or self.should_exit():
+                        break
                     self.update()
                     time.sleep(self.loop_delay)
 

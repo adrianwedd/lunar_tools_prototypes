@@ -5,6 +5,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
+from src.lunar_tools_art.loop_utils import MainLoopQueue
 from src.lunar_tools_art.prototype_base import (
     AIPrototype,
     InteractivePrototype,
@@ -220,6 +221,43 @@ class TestPrototypeBase:
         # Should not crash, should still call cleanup
         mock_prototype.run()
         assert mock_prototype.cleanup_called
+
+
+class QueuePostingPrototype(PrototypeBase):
+    """Posts to manager.main_queue from a worker thread during setup, then
+    exits immediately so run() only loops once."""
+
+    def __init__(self, *args, flag=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.flag = flag
+
+    def setup(self):
+        import threading
+
+        def poster():
+            self.manager.main_queue.post(self.flag.append, 1)
+
+        t = threading.Thread(target=poster)
+        t.start()
+        t.join()
+
+    def update(self):
+        pass
+
+    def cleanup(self):
+        pass
+
+
+class TestMainQueueDraining:
+    def test_run_drains_main_queue_posted_during_setup(self, mock_manager):
+        mock_manager.main_queue = MainLoopQueue()
+        flag = []
+        prototype = QueuePostingPrototype(mock_manager, flag=flag)
+        prototype.should_exit = Mock(return_value=True)
+
+        prototype.run()
+
+        assert flag == [1]
 
 
 class TestInteractivePrototype:

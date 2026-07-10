@@ -5,6 +5,7 @@ from . import privacy, tools
 from .config import config
 from .emotion import EmotionDetector
 from .llm_backends import create_backend
+from .loop_utils import MainLoopQueue
 from .prosody import ProsodyAnalyzer
 from .tools import FluxImageGenerator
 from .tracing import traceable
@@ -14,6 +15,9 @@ from .voice_client import VoiceClient
 class LunarToolsArtManager:
     def __init__(self):
         self._setup_logging()
+
+        # Thread-safe handoff for background threads to reach the main loop.
+        self.main_queue = MainLoopQueue()
 
         # Initialize tools using configuration
         renderer_config = config.get("renderer", {"width": 1920, "height": 1080})
@@ -55,10 +59,15 @@ class LunarToolsArtManager:
         self.sound_player = self._traceable_tool(
             tools.resolve("SoundPlayer"), "SoundPlayer", methods_to_trace=["play_audio"]
         )
+        keyboard_kwargs = {}
+        renderer_window = getattr(self.renderer, "window", None)
+        if renderer_window is not None:
+            keyboard_kwargs["window"] = renderer_window
         self.keyboard_input = self._traceable_tool(
             tools.resolve("KeyboardInput"),
             "KeyboardInput",
             methods_to_trace=["is_key_pressed"],
+            **keyboard_kwargs,
         )
         self.webcam = self._traceable_tool(
             tools.resolve("WebCam"), "WebCam", methods_to_trace=["get_img"]

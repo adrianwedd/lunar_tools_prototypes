@@ -1,16 +1,3 @@
-class Renderer:
-    def __init__(self, *args, **kwargs):
-        self.width = kwargs.get("width")
-        self.height = kwargs.get("height")
-
-    def render(self, *args, **kwargs):
-        pass
-
-    def set_size(self, width, height):
-        self.width = width
-        self.height = height
-
-
 class Speech2Text:
     def __init__(self, *args, **kwargs):
         pass
