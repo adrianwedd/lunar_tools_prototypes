@@ -19,5 +19,13 @@ def test_manager_headless_no_cloud(monkeypatch):
     from lunar_tools_art.manager import LunarToolsArtManager
 
     m = LunarToolsArtManager()
-    assert m.dalle3 is None and m.sdxl_turbo is None and m.sdxl_lcm is None
+    # Task 9: image generation is served by a unified ImageGenerator (forced
+    # to the deterministic `fake` backend in headless mode); legacy aliases
+    # wrap it regardless of privacy mode, so they are no longer None.
+    from lunar_tools_art.tools.images import DeprecatedAlias
+
+    assert isinstance(m.dalle3, DeprecatedAlias)
+    assert isinstance(m.sdxl_turbo, DeprecatedAlias)
+    assert isinstance(m.sdxl_lcm, DeprecatedAlias)
+    assert m.image_gen.backend == "fake"
     assert m.webcam is not None

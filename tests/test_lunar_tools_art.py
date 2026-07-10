@@ -6,7 +6,7 @@ import pytest
 
 from src.lunar_tools_art import Manager
 from src.lunar_tools_art.llm_backends import LLMBackend
-from src.lunar_tools_art.tools import FluxImageGenerator, resolve
+from src.lunar_tools_art.tools import resolve
 
 PROTOTYPES_DIR = os.path.join(os.path.dirname(__file__), "..", "prototypes")
 
@@ -43,17 +43,20 @@ def test_lunar_tools_art_manager_initialization():
     from src.lunar_tools_art.tools.tts import Text2Speech
 
     assert isinstance(manager.text2speech, Text2Speech)
-    # Cloud-calling tools are only constructed when privacy.cloud_allowed();
-    # default privacy.mode is local-only, so these are None here.
-    assert manager.sdxl_turbo is None
-    assert manager.dalle3 is None
-    assert manager.sdxl_lcm is None
+    # Task 9: image generation is served by a unified ImageGenerator; legacy
+    # aliases wrap it via DeprecatedAlias regardless of privacy mode (local
+    # mflux/fake backends serve them even under local-only).
+    from src.lunar_tools_art.tools.images import DeprecatedAlias
+
+    assert isinstance(manager.sdxl_turbo, DeprecatedAlias)
+    assert isinstance(manager.dalle3, DeprecatedAlias)
+    assert isinstance(manager.sdxl_lcm, DeprecatedAlias)
     assert isinstance(manager.audio_recorder, resolve("AudioRecorder"))
     assert isinstance(manager.sound_player, resolve("SoundPlayer"))
     assert isinstance(manager.renderer, resolve("Renderer"))
     assert isinstance(manager.keyboard_input, resolve("KeyboardInput"))
     assert isinstance(manager.webcam, resolve("WebCam"))
-    assert isinstance(manager.flux, FluxImageGenerator)
+    assert isinstance(manager.flux, DeprecatedAlias)
     assert isinstance(manager.zmq_pair_endpoint, resolve("ZMQPairEndpoint"))
     assert isinstance(manager.midi_input, resolve("MidiInput"))
 

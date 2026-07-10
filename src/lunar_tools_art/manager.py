@@ -7,7 +7,8 @@ from .emotion import EmotionDetector
 from .llm_backends import create_backend
 from .loop_utils import MainLoopQueue
 from .prosody import ProsodyAnalyzer
-from .tools import FluxImageGenerator
+from .tools.headless import headless_active
+from .tools.images import DeprecatedAlias, ImageGenerator
 from .tools.tts import Text2Speech
 from .tracing import traceable
 from .voice_client import VoiceClient
@@ -98,32 +99,33 @@ class LunarToolsArtManager:
             tools.resolve("WebCam"), "WebCam", methods_to_trace=["get_img"]
         )
 
-        if privacy.cloud_allowed():
-            self.sdxl_turbo = self._traceable_tool(
-                tools.resolve("SDXL_TURBO"), "SDXL_TURBO", methods_to_trace=["generate"]
-            )
-            self.dalle3 = self._traceable_tool(
-                tools.resolve("Dalle3ImageGenerator"),
-                "Dalle3ImageGenerator",
-                methods_to_trace=["generate"],
-            )
-            self.sdxl_lcm = self._traceable_tool(
-                tools.resolve("SDXL_LCM"), "SDXL_LCM", methods_to_trace=["generate"]
-            )
-        else:
-            self.logger.info(
-                "privacy.mode is local-only; skipping SDXL_TURBO, "
-                "Dalle3ImageGenerator, SDXL_LCM construction"
-            )
-            self.sdxl_turbo = None
-            self.dalle3 = None
-            self.sdxl_lcm = None
+        # Unified image generator: local mflux by default, gated cloud
+        # backends (openai/replicate). Forced to the deterministic `fake`
+        # backend in headless mode so tests/CI never touch mflux or the
+        # network. Legacy prototype call sites (SDXL_TURBO,
+        # Dalle3ImageGenerator, SDXL_LCM, FluxImageGenerator) are served by
+        # DeprecatedAlias wrappers around the same generator, regardless of
+        # privacy mode — cloud kwargs simply route to local mflux unless a
+        # cloud backend was explicitly configured and allowed.
+        image_config = dict(config.get("image", {}))
+        if headless_active():
+            image_config["backend"] = "fake"
+        try:
+            self.image_gen = ImageGenerator(**image_config)
+        except Exception as e:
+            self.logger.error(f"Failed to initialize ImageGenerator: {e}")
+            self.image_gen = None
 
-        # FluxImageGenerator stays a stub until Task 9 replaces the `flux`
-        # attribute; not privacy-gated in this transition window.
-        self.flux = self._traceable_tool(
-            FluxImageGenerator, "FluxImageGenerator", methods_to_trace=["generate"]
-        )
+        if self.image_gen is not None:
+            self.dalle3 = DeprecatedAlias(self.image_gen, "Dalle3ImageGenerator")
+            self.sdxl_turbo = DeprecatedAlias(self.image_gen, "SDXL_TURBO")
+            self.sdxl_lcm = DeprecatedAlias(self.image_gen, "SDXL_LCM")
+            self.flux = DeprecatedAlias(self.image_gen, "FluxImageGenerator")
+        else:
+            self.dalle3 = None
+            self.sdxl_turbo = None
+            self.sdxl_lcm = None
+            self.flux = None
         self.zmq_pair_endpoint = self._traceable_tool(
             tools.resolve("ZMQPairEndpoint"),
             "ZMQPairEndpoint",

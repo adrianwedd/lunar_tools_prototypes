@@ -36,3 +36,9 @@ model = "base.en"
 [privacy]
 mode = "local-only"
 auto_delete_session = true
+
+[image]
+backend = "mflux"
+model = "schnell"
+quantize = 4
+output_dir = "outputs/images"
