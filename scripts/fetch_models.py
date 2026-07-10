@@ -18,15 +18,18 @@ from pathlib import Path
 MODELS_DIR = Path(__file__).resolve().parent.parent / "models"
 
 # Official onnx/models release asset for the FER+ emotion classifier.
-# https://github.com/onnx/models/tree/main/validated/vision/body_analysis/emotion_ferplus
+# Pinned to commit bec48b6a70e5e9042c0badbaafefe4454e072d08 for immutability.
+# https://github.com/onnx/models/tree/bec48b6a70e5e9042c0badbaafefe4454e072d08/validated/vision/body_analysis/emotion_ferplus
 FERPLUS_URL = (
-    "https://github.com/onnx/models/raw/main/validated/vision/body_analysis/"
+    "https://github.com/onnx/models/raw/bec48b6a70e5e9042c0badbaafefe4454e072d08/validated/vision/body_analysis/"
     "emotion_ferplus/model/emotion-ferplus-8.onnx"
 )
 # NOTE: placeholder checksum — this script has intentionally NOT been run.
 # Before first real use, download the file once via a trusted channel,
 # compute `shasum -a 256 models/emotion-ferplus-8.onnx`, and replace this
 # value. The script will refuse to install the model on a mismatch.
+# On first trusted download, also verify the pinned commit URL path is reachable;
+# if the path 404s, update the commit SHA and path accordingly.
 FERPLUS_SHA256 = "0000000000000000000000000000000000000000000000000000000000000"
 FERPLUS_FILENAME = "emotion-ferplus-8.onnx"
 
