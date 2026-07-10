@@ -37,6 +37,32 @@ class MockPrototype(PrototypeBase):
         self.cleanup_called = True
 
 
+class ConcreteInteractivePrototype(InteractivePrototype):
+    """Minimal concrete subclass for testing InteractivePrototype."""
+
+    def setup(self):
+        pass
+
+    def update(self):
+        pass
+
+    def cleanup(self):
+        pass
+
+
+class ConcreteAIPrototype(AIPrototype):
+    """Minimal concrete subclass for testing AIPrototype."""
+
+    def setup(self):
+        pass
+
+    def update(self):
+        pass
+
+    def cleanup(self):
+        pass
+
+
 @pytest.fixture
 def mock_manager():
     """Create a mock Manager instance."""
@@ -133,8 +159,13 @@ class TestPrototypeBase:
         config = {"local_param": "local_value"}
         prototype = MockPrototype(mock_manager, **config)
 
-        # Manager global config
-        mock_manager.config.get = Mock(return_value="global_value")
+        # Manager global config: only "global_param" resolves, everything
+        # else falls back to the caller-supplied default.
+        mock_manager.config.get = Mock(
+            side_effect=lambda key, default=None: (
+                "global_value" if key == "global_param" else default
+            )
+        )
 
         # Local config takes precedence
         assert prototype.get_config("local_param") == "local_value"
@@ -204,7 +235,7 @@ class TestInteractivePrototype:
 
     def test_initialization(self, interactive_manager):
         """Test interactive prototype initialization."""
-        prototype = InteractivePrototype(interactive_manager)
+        prototype = ConcreteInteractivePrototype(interactive_manager)
 
         assert prototype.speech2text == interactive_manager.speech2text
         assert prototype.audio_recorder == interactive_manager.audio_recorder
@@ -212,7 +243,7 @@ class TestInteractivePrototype:
 
     def test_get_user_speech_success(self, interactive_manager):
         """Test successful speech capture."""
-        prototype = InteractivePrototype(interactive_manager)
+        prototype = ConcreteInteractivePrototype(interactive_manager)
 
         # Mock successful audio recording and transcription
         mock_audio = b"fake_audio_data"
@@ -227,7 +258,7 @@ class TestInteractivePrototype:
 
     def test_get_user_speech_failure(self, interactive_manager):
         """Test speech capture failure scenarios."""
-        prototype = InteractivePrototype(interactive_manager)
+        prototype = ConcreteInteractivePrototype(interactive_manager)
 
         # No audio recorded
         interactive_manager.audio_recorder.record.return_value = None
@@ -262,7 +293,7 @@ class TestAIPrototype:
 
     def test_initialization(self, ai_manager):
         """Test AI prototype initialization."""
-        prototype = AIPrototype(ai_manager)
+        prototype = ConcreteAIPrototype(ai_manager)
 
         assert prototype.llm == ai_manager.gpt4
         assert prototype.text2speech == ai_manager.text2speech
@@ -271,7 +302,7 @@ class TestAIPrototype:
 
     def test_generate_text_success(self, ai_manager):
         """Test successful text generation."""
-        prototype = AIPrototype(ai_manager)
+        prototype = ConcreteAIPrototype(ai_manager)
 
         ai_manager.gpt4.chat.return_value = "Generated text"
 
@@ -282,7 +313,7 @@ class TestAIPrototype:
 
     def test_generate_text_failure(self, ai_manager):
         """Test text generation failure."""
-        prototype = AIPrototype(ai_manager)
+        prototype = ConcreteAIPrototype(ai_manager)
 
         ai_manager.gpt4.chat.side_effect = Exception("API error")
 
@@ -292,7 +323,7 @@ class TestAIPrototype:
 
     def test_generate_image_dalle(self, ai_manager):
         """Test image generation with DALL-E."""
-        prototype = AIPrototype(ai_manager)
+        prototype = ConcreteAIPrototype(ai_manager)
 
         ai_manager.dalle.generate.return_value = "/path/to/image.jpg"
 
@@ -303,7 +334,7 @@ class TestAIPrototype:
 
     def test_generate_image_sdxl(self, ai_manager):
         """Test image generation with SDXL."""
-        prototype = AIPrototype(ai_manager)
+        prototype = ConcreteAIPrototype(ai_manager)
 
         ai_manager.sdxl.generate.return_value = "/path/to/image.jpg"
 
@@ -314,7 +345,7 @@ class TestAIPrototype:
 
     def test_generate_image_unavailable_generator(self, ai_manager):
         """Test image generation with unavailable generator."""
-        prototype = AIPrototype(ai_manager)
+        prototype = ConcreteAIPrototype(ai_manager)
 
         # Remove dalle from manager
         delattr(ai_manager, "dalle")
@@ -326,7 +357,7 @@ class TestAIPrototype:
 
     def test_generate_image_failure(self, ai_manager):
         """Test image generation failure."""
-        prototype = AIPrototype(ai_manager)
+        prototype = ConcreteAIPrototype(ai_manager)
 
         ai_manager.dalle.generate.side_effect = Exception("Generation failed")
 
