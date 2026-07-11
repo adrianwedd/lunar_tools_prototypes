@@ -1,5 +1,7 @@
 # tests/test_llm_backends.py
 import os
+import sys
+import types
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -15,6 +17,16 @@ from src.lunar_tools_art.llm_backends import (
     OpenRouterBackend,
     create_backend,
 )
+
+# The real `anthropic` package lives in the optional "cloud" extra and is not
+# installed in CI's "dev" environment. ClaudeBackend only needs `anthropic`
+# to expose an `Anthropic` client class at construction time (the actual API
+# calls are mocked in these tests), so a lightweight fake module is enough —
+# this keeps the tests independent of whether the real SDK is installed.
+if "anthropic" not in sys.modules:
+    _fake_anthropic = types.ModuleType("anthropic")
+    _fake_anthropic.Anthropic = MagicMock(name="Anthropic")
+    sys.modules["anthropic"] = _fake_anthropic
 
 
 @pytest.fixture(autouse=True)

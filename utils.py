@@ -1,5 +1,6 @@
 import datetime
 import logging
+import os
 import time
 
 from dotenv import load_dotenv
@@ -32,7 +33,9 @@ def generate_and_play_speech(
 
 def save_response_to_file(response, prefix):
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    filename = f".output/{prefix}_{timestamp}.txt"
+    output_dir = ".output"
+    os.makedirs(output_dir, exist_ok=True)
+    filename = f"{output_dir}/{prefix}_{timestamp}.txt"
     with open(filename, "w") as f:
         f.write(response)
     logging.info(f"Saved response to {filename}")
