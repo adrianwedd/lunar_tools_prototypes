@@ -10,14 +10,14 @@ import os
 import tempfile
 import time
 import uuid
-from typing import Callable, Optional
+from collections.abc import Callable
 
 import numpy as np
 from PIL import Image
 
 
 def create_secure_temp_file(
-    suffix: str = "", prefix: str = "lunar_tools_", directory: Optional[str] = None
+    suffix: str = "", prefix: str = "lunar_tools_", directory: str | None = None
 ) -> str:
     """
     Create a secure temporary file with a unique name.

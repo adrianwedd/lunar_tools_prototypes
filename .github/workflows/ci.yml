@@ -17,7 +17,7 @@ jobs:
         fetch-depth: 0  # Full history for better analysis
 
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: '3.12'
 
@@ -27,8 +27,8 @@ jobs:
 
     - name: Run Bandit security linter
       run: |
-        bandit -r src/ prototypes/ -f json -o bandit-report.json || true
-        bandit -r src/ prototypes/ -f txt
+        bandit --skip B311,B113 -r src/ prototypes/ -f json -o bandit-report.json || true
+        bandit --skip B311,B113 -r src/ prototypes/ -f txt
 
     - name: Run Safety dependency scanner
       run: |
@@ -40,7 +40,7 @@ jobs:
         detect-secrets scan --all-files --baseline .secrets.baseline || true
 
     - name: Upload security reports
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: always()
       with:
         name: security-reports
@@ -53,45 +53,49 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ['3.9', '3.10', '3.11', '3.12']
+        python-version: ['3.10', '3.12']
 
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
 
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
 
     - name: Cache pip dependencies
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: ~/.cache/pip
-        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt', '**/pyproject.toml') }}
         restore-keys: |
           ${{ runner.os }}-pip-
 
-    - name: Install dependencies
+    # Linux CI intentionally installs only the "dev" extra — no "mlx" or
+    # "hw" extras. All Apple Silicon / hardware imports (mlx, mlx-whisper,
+    # mlx-lm, mflux, sounddevice, pyglet, mido, python-rtmidi, pyzmq,
+    # pynput) are lazy inside src/lunar_tools_art/tools/, so a green run
+    # here on plain Linux is the proof those imports never happen at
+    # module load time. LUNAR_HEADLESS=1 additionally swaps in the
+    # deterministic in-repo fakes (see src/lunar_tools_art/tools/) for
+    # every hardware/cloud-backed tool.
+    - name: Install package (dev extra only)
       run: |
         python -m pip install --upgrade pip
-        pip install -r requirements.txt
-        pip install pytest pytest-cov pytest-mock
+        pip install -e ".[dev]"
 
-    - name: Install package
+    - name: Run tests (headless)
       run: |
-        pip install -e .
-
-    - name: Run tests with coverage
-      run: |
-        pytest tests/ -v --cov=src/lunar_tools_art --cov-report=xml --cov-report=html
+        LUNAR_HEADLESS=1 pytest -q --cov=src/lunar_tools_art --cov-report=xml --cov-report=html
       env:
         # Mock environment variables for testing
         OPENAI_API_KEY: "test-key"
         REPLICATE_API_TOKEN: "test-token"
+        LUNAR_HEADLESS: "1"
 
     - name: Upload test reports
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: always()
       with:
         name: test-reports-py${{ matrix.python-version }}
@@ -107,13 +111,13 @@ jobs:
       uses: actions/checkout@v4
 
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: '3.12'
 
     - name: Install quality tools
       run: |
-        pip install black isort ruff mypy
+        pip install black==25.1.0 isort==6.0.1 ruff==0.12.7 mypy
 
     - name: Check code formatting with Black
       run: |

@@ -82,32 +82,68 @@ class AcousticFingerprintPainter:
             "Example: {{'length': 100, 'curvature': 0.5, 'color': [255, 0, 0], 'start_x': 100, 'start_y': 200}}"
         )
         self.logger.info("Requesting stroke parameters from GPT-4...")
+        if self.gpt4 is None:
+            self.logger.warning("LLM backend unavailable; skipping stroke request.")
+            return None
+        response = None
         try:
             response = self.gpt4.generate(prompt)
-            # Attempt to parse JSON, handle potential errors
-            stroke_params = json.loads(response)
+            if not response:
+                self.logger.warning("LLM returned no response; skipping stroke.")
+                return None
+            stroke_params = self._parse_stroke_json(response)
+            if stroke_params is None:
+                self.logger.error(f"Could not parse JSON from LLM response: {response}")
             return stroke_params
-        except json.JSONDecodeError as e:
-            self.logger.error(
-                f"Error decoding JSON from GPT-4 response: {e}", exc_info=True
-            )
-            self.logger.error(f"GPT-4 response: {response}")
-            return None
         except Exception as e:
             self.logger.error(
                 f"Error getting stroke parameters from GPT-4: {e}", exc_info=True
             )
+            if response is not None:
+                self.logger.error(f"GPT-4 response: {response}")
             return None
+
+    @staticmethod
+    def _parse_stroke_json(response):
+        text = str(response).strip()
+        if text.startswith("```"):
+            text = text.strip("`")
+            if text.startswith("json"):
+                text = text[4:]
+            text = text.strip()
+        start = text.find("{")
+        end = text.rfind("}")
+        if start == -1 or end == -1 or end <= start:
+            return None
+        try:
+            params = json.loads(text[start : end + 1])
+        except json.JSONDecodeError:
+            return None
+        return params if isinstance(params, dict) else None
 
     def _draw_stroke(self, stroke_params):
         if not stroke_params:
             return
 
-        length = stroke_params.get("length", 50)
-        curvature = stroke_params.get("curvature", 0.1)
-        color = tuple(stroke_params.get("color", [255, 255, 255]))
-        start_x = stroke_params.get("start_x", random.randint(0, self.renderer.width))
-        start_y = stroke_params.get("start_y", random.randint(0, self.renderer.height))
+        def _num(value, default):
+            try:
+                return float(value)
+            except (TypeError, ValueError):
+                return default
+
+        length = _num(stroke_params.get("length"), 50)
+        curvature = _num(stroke_params.get("curvature"), 0.1)
+        raw_color = stroke_params.get("color")
+        if isinstance(raw_color, list | tuple) and len(raw_color) == 3:
+            color = tuple(int(max(0, min(255, _num(c, 255)))) for c in raw_color)
+        else:
+            color = (255, 255, 255)
+        start_x = int(
+            _num(stroke_params.get("start_x"), random.randint(0, self.renderer.width))
+        )
+        start_y = int(
+            _num(stroke_params.get("start_y"), random.randint(0, self.renderer.height))
+        )
 
         draw = ImageDraw.Draw(self.canvas_image)
 

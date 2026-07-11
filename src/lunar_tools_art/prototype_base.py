@@ -9,10 +9,10 @@ import logging
 import time
 from abc import ABC, abstractmethod
 from contextlib import contextmanager
-from typing import Any, Optional
+from typing import Any
 
-from .exceptions import PrototypeExceptionHandler
-from .manager import Manager
+from .exceptions import AIServiceError, ExceptionHandler
+from .manager import LunarToolsArtManager
 
 
 class PrototypeBase(ABC):
@@ -28,7 +28,10 @@ class PrototypeBase(ABC):
     """
 
     def __init__(
-        self, lunar_tools_art_manager: Manager, loop_delay: float = 0.1, **kwargs: Any
+        self,
+        lunar_tools_art_manager: LunarToolsArtManager,
+        loop_delay: float = 0.1,
+        **kwargs: Any,
     ):
         """Initialize the prototype with manager and configuration.
 
@@ -45,7 +48,7 @@ class PrototypeBase(ABC):
         self.logger = logging.getLogger(f"{__name__}.{self.__class__.__name__}")
 
         # Set up exception handler for consistent error handling
-        self.exception_handler = PrototypeExceptionHandler(
+        self.exception_handler = ExceptionHandler(
             logger=self.logger, prototype_name=self.__class__.__name__
         )
 
@@ -132,7 +135,12 @@ class PrototypeBase(ABC):
                 self.setup()
 
                 # Main loop
-                while self._running and not self.should_exit():
+                main_queue = getattr(self.manager, "main_queue", None)
+                while True:
+                    if main_queue is not None:
+                        main_queue.drain()
+                    if not self._running or self.should_exit():
+                        break
                     self.update()
                     time.sleep(self.loop_delay)
 
@@ -248,7 +256,7 @@ class InteractivePrototype(PrototypeBase):
     - User input handling
     """
 
-    def __init__(self, lunar_tools_art_manager: Manager, **kwargs):
+    def __init__(self, lunar_tools_art_manager: LunarToolsArtManager, **kwargs):
         super().__init__(lunar_tools_art_manager, **kwargs)
 
         # Interactive tool references
@@ -258,7 +266,7 @@ class InteractivePrototype(PrototypeBase):
 
         self.logger.info("Interactive prototype initialized")
 
-    def get_user_speech(self, timeout: float = 5.0) -> Optional[str]:
+    def get_user_speech(self, timeout: float = 5.0) -> str | None:
         """Capture and transcribe user speech.
 
         Args:
@@ -296,20 +304,23 @@ class AIPrototype(PrototypeBase):
     - Error handling for AI services
     """
 
-    def __init__(self, lunar_tools_art_manager: Manager, **kwargs):
+    def __init__(self, lunar_tools_art_manager: LunarToolsArtManager, **kwargs):
         super().__init__(lunar_tools_art_manager, **kwargs)
 
-        # AI tool references
-        self.llm = self.manager.gpt4
+        # AI tool references. self.manager.gpt4 remains a backward-compat
+        # alias for self.manager.llm_backend (see manager.py); use the
+        # canonical attribute here.
+        self.llm = self.manager.llm_backend
         self.text2speech = self.manager.text2speech
 
-        # Image generators (may be None if not configured)
-        self.dalle = getattr(self.manager, "dalle", None)
-        self.sdxl = getattr(self.manager, "sdxl", None)
+        # Legacy image-generator aliases (manager exposes dalle3/sdxl_turbo;
+        # both wrap manager.image_gen). May be None if not configured.
+        self.dalle = getattr(self.manager, "dalle3", None)
+        self.sdxl = getattr(self.manager, "sdxl_turbo", None)
 
         self.logger.info("AI prototype initialized")
 
-    def generate_text(self, prompt: str, **kwargs) -> Optional[str]:
+    def generate_text(self, prompt: str, **kwargs) -> str | None:
         """Generate text using the configured LLM.
 
         Args:
@@ -321,13 +332,18 @@ class AIPrototype(PrototypeBase):
         """
         try:
             self.logger.debug(f"Generating text for prompt: '{prompt[:50]}...'")
-            response = self.llm.chat(prompt, **kwargs)
+            system_prompt = kwargs.pop("system_prompt", None)
+            if kwargs:
+                self.logger.debug(
+                    f"generate_text: dropping unsupported kwargs: {sorted(kwargs)}"
+                )
+            response = self.llm.generate(prompt, system_prompt=system_prompt)
             return response
         except Exception as e:
             self.logger.error(f"Text generation failed: {e}")
             return None
 
-    def generate_image(self, prompt: str, generator: str = "dalle") -> Optional[str]:
+    def generate_image(self, prompt: str, generator: str = "dalle") -> str | None:
         """Generate image using specified generator.
 
         Args:
@@ -340,14 +356,21 @@ class AIPrototype(PrototypeBase):
         try:
             self.logger.debug(f"Generating image with {generator}: '{prompt[:50]}...'")
 
+            image_gen = getattr(self.manager, "image_gen", None)
+            if image_gen is not None:
+                path, _meta = image_gen.generate(prompt)
+                return path
+
+            # Fallback (pre-Task 9): use the named legacy generator if present.
             if generator == "dalle" and self.dalle:
                 return self.dalle.generate(prompt)
             elif generator == "sdxl" and self.sdxl:
                 return self.sdxl.generate(prompt)
-            else:
-                self.logger.warning(f"Image generator '{generator}' not available")
-                return None
 
+            raise AIServiceError(f"Image generator '{generator}' not available")
+
+        except AIServiceError:
+            raise
         except Exception as e:
             self.logger.error(f"Image generation failed: {e}")
             return None

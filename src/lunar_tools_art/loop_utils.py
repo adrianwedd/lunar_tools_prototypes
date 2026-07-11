@@ -1,4 +1,5 @@
 import logging
+import queue
 import time
 
 
@@ -28,9 +29,13 @@ def run_until_quit(callback, lunar_tools_art_manager, fps=30):
         f"Starting loop at {fps} FPS. Press 'q' to quit or Ctrl+C."
     )
 
+    main_queue = getattr(lunar_tools_art_manager, "main_queue", None)
+
     try:
         while loop_control.is_running():
             start_time = time.time()
+            if main_queue is not None:
+                main_queue.drain()
             callback()
             elapsed_time = time.time() - start_time
             sleep_time = delay - elapsed_time
@@ -40,3 +45,28 @@ def run_until_quit(callback, lunar_tools_art_manager, fps=30):
         lunar_tools_art_manager.logger.info("Ctrl+C detected. Stopping loop.")
     finally:
         loop_control.stop()
+
+
+class MainLoopQueue:
+    """Thread-safe handoff: background threads post callables, main loop drains them."""
+
+    def __init__(self):
+        self._q = queue.Queue()
+
+    def post(self, fn, *args):
+        self._q.put((fn, args))
+
+    def drain(self, max_items=10):
+        for _ in range(max_items):
+            try:
+                fn, args = self._q.get_nowait()
+            except queue.Empty:
+                return
+            try:
+                fn(*args)
+            except Exception:
+                # One failing callback must not kill the main loop or drop
+                # the remaining queued items.
+                logging.getLogger(__name__).exception(
+                    "MainLoopQueue callback raised; continuing drain"
+                )

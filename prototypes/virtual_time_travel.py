@@ -65,10 +65,17 @@ class TimeTravelExperience:
                 era = self.historical_eras[self.current_era_index]
                 narration = f"Welcome to the {era} era."
                 self.logger.info(narration)
-                self.text2speech.generate(narration)
+                if self.text2speech is not None:
+                    try:
+                        self.text2speech.generate(narration)
+                    except Exception as e:
+                        self.logger.error(
+                            f"Error narrating era {era}: {e}", exc_info=True
+                        )
 
                 image = self.generate_historical_visual(era)
-                self.renderer.render(image)
+                if image is not None:
+                    self.renderer.render(image)
 
             time.sleep(self.loop_delay)  # Small delay to prevent busy-waiting
 

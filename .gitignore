@@ -48,3 +48,9 @@ temp_recording.wav
 # Runtime generated content
 generated_images/
 output_audio/
+outputs/
+
+.afterwords
+
+# Downloaded ML model weights (fetch via scripts/fetch_models.py)
+models/

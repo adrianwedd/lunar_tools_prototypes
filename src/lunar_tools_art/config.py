@@ -51,6 +51,9 @@ class PIIFilter(logging.Filter):
         for pattern in patterns:
             message = re.sub(pattern, "[REDACTED]", message, flags=re.IGNORECASE)
         record.msg = message
+        # getMessage() above already interpolated args into the message;
+        # leaving them set would make handlers re-format and raise TypeError.
+        record.args = ()
         return True
 
 
@@ -69,7 +72,7 @@ class Config:
     def _load_settings_from_env(self):
         for key, value in os.environ.items():
             # Simple heuristic to convert env vars to nested dicts
-            if "__" in key:
+            if "__" in key and not key.startswith("__"):
                 parts = key.lower().split("__")
                 current_dict = self._config
                 for part in parts[:-1]:

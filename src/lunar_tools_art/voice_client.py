@@ -11,6 +11,8 @@ from dataclasses import dataclass
 
 import httpx
 
+from . import privacy
+
 log = logging.getLogger(__name__)
 
 
@@ -29,6 +31,7 @@ class VoiceClient:
     def __init__(
         self, server_url: str = "http://localhost:7860", timeout: float = 30.0
     ):
+        privacy.require_local_url(server_url, "VoiceClient (Afterwords)")
         self.server_url = server_url.rstrip("/")
         self.timeout = timeout
 
@@ -63,7 +66,7 @@ class VoiceClient:
             )
             if resp.status_code == 200:
                 return resp.content
-            log.error(f"Synthesize failed: {resp.status_code} {resp.text}")
+            log.error(f"Synthesize failed: HTTP {resp.status_code}")
             return None
         except Exception as e:
             log.error(f"Synthesize request failed: {e}")
@@ -98,7 +101,7 @@ class VoiceClient:
                     duration_s=j.get("duration_s", 0.0),
                     sequence=j.get("sequence", 0),
                 )
-            log.error(f"Clone failed: {resp.status_code} {resp.text}")
+            log.error(f"Clone failed: HTTP {resp.status_code}")
             return None
         except Exception as e:
             log.error(f"Clone request failed: {e}")

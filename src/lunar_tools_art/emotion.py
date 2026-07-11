@@ -7,14 +7,44 @@ Future: MLX emotion model (gated on validation benchmarks).
 from __future__ import annotations
 
 import logging
+import os
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
-import cv2
-import numpy as np
+from .config import config
+
+if TYPE_CHECKING:
+    import numpy as np
 
 log = logging.getLogger(__name__)
 
-EMOTIONS = ["anger", "contempt", "fear", "joy", "neutral", "sadness", "surprise"]
+# Canonical emotion vocabulary shared by all producers (placeholder, FER+
+# ONNX) and consumers (audio_mirror color map, LLM viewer-data prompts).
+EMOTIONS = [
+    "anger",
+    "contempt",
+    "disgust",
+    "fear",
+    "joy",
+    "neutral",
+    "sadness",
+    "surprise",
+]
+
+# FER+ model output order (onnx/models emotion-ferplus-8.onnx).
+FERPLUS_LABELS = [
+    "neutral",
+    "happiness",
+    "surprise",
+    "sadness",
+    "anger",
+    "disgust",
+    "fear",
+    "contempt",
+]
+
+# FER+ label names that differ from the canonical vocabulary.
+_FERPLUS_TO_CANONICAL = {"happiness": "joy"}
 
 
 @dataclass
@@ -26,10 +56,13 @@ class EmotionResult:
 
 
 class EmotionDetector:
-    def __init__(self):
+    def __init__(self, model_path: str | None = None):
         self._has_classifier = False
         self._placeholder_warned = False
+        self._net = None
         try:
+            import cv2
+
             cascade_path = cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
             self._face_cascade = cv2.CascadeClassifier(cascade_path)
             if self._face_cascade.empty():
@@ -38,6 +71,27 @@ class EmotionDetector:
         except Exception as e:
             log.warning(f"Could not initialize face detector: {e}")
             self._face_cascade = None
+
+        if model_path is None:
+            model_path = config.get("emotion.model_path")
+        self._load_classifier(model_path)
+
+    def _load_classifier(self, model_path: str | None) -> None:
+        if not model_path:
+            return
+        if not os.path.isfile(model_path):
+            log.warning(f"Emotion model path does not exist: {model_path}")
+            return
+        try:
+            import cv2
+
+            self._net = cv2.dnn.readNetFromONNX(model_path)
+            self._has_classifier = True
+            log.info(f"Loaded FER+ ONNX emotion classifier from {model_path}")
+        except Exception as e:
+            log.warning(f"Could not load ONNX emotion classifier: {e}")
+            self._net = None
+            self._has_classifier = False
 
     @property
     def has_classifier(self) -> bool:
@@ -49,6 +103,8 @@ class EmotionDetector:
             return []
 
         try:
+            import cv2
+
             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY) if frame.ndim == 3 else frame
             faces = self._face_cascade.detectMultiScale(gray, 1.1, 4, minSize=(60, 60))
 
@@ -74,9 +130,15 @@ class EmotionDetector:
     def _classify_emotion(self, face_roi: np.ndarray) -> dict[str, float]:
         """Classify emotion from face ROI.
 
-        Current implementation: placeholder returning neutral with confidence=0.
-        To be replaced with ONNX DNN model or MLX model after validation.
+        Fallback chain: ONNX FER+ DNN model (if loaded) -> placeholder
+        returning neutral with confidence=0.
         """
+        if self._has_classifier and self._net is not None:
+            try:
+                return self._classify_emotion_onnx(face_roi)
+            except Exception as e:
+                log.error(f"ONNX emotion classification failed, using placeholder: {e}")
+
         if not self._placeholder_warned:
             log.warning(
                 "EmotionDetector using placeholder classifier — emotions are not real. "
@@ -84,3 +146,25 @@ class EmotionDetector:
             )
             self._placeholder_warned = True
         return {e: (0.8 if e == "neutral" else 0.03) for e in EMOTIONS}
+
+    def _classify_emotion_onnx(self, face_roi: np.ndarray) -> dict[str, float]:
+        """Run the ONNX FER+ model on a 64x64 grayscale face ROI.
+
+        Labels are mapped to the canonical EMOTIONS vocabulary (FER+
+        "happiness" -> "joy") so downstream consumers see one vocabulary
+        regardless of which classifier produced the result.
+        """
+        import cv2
+        import numpy as np
+
+        resized = cv2.resize(face_roi, (64, 64))
+        blob = cv2.dnn.blobFromImage(resized, scalefactor=1.0, size=(64, 64))
+        self._net.setInput(blob)
+        logits = self._net.forward()
+        logits = np.asarray(logits).reshape(-1)
+        exp = np.exp(logits - np.max(logits))
+        probs = exp / exp.sum()
+        return {
+            _FERPLUS_TO_CANONICAL.get(label, label): float(prob)
+            for label, prob in zip(FERPLUS_LABELS, probs, strict=False)
+        }

@@ -8,6 +8,7 @@ from PIL import Image, ImageDraw
 
 from src.lunar_tools_art import Manager
 from src.lunar_tools_art.config import config
+from src.lunar_tools_art.tools.headless import headless_active
 
 
 class DataDrivenCityscape:
@@ -17,7 +18,7 @@ class DataDrivenCityscape:
         self.gpt4 = lunar_tools_art_manager.gpt4
         self.keyboard_input = lunar_tools_art_manager.keyboard_input
         self.logger = lunar_tools_art_manager.logger
-        self.weather_api_key = config.get_or_raise("api_keys.openweathermap")
+        self.weather_api_key = config.get("api_keys.openweathermap")
         self.city = city
         self.last_data_fetch_time = 0
         self.data_fetch_interval = 600  # Fetch data every 10 minutes
@@ -25,7 +26,27 @@ class DataDrivenCityscape:
             "RGB", (self.renderer.width, self.renderer.height), color=(0, 0, 0)
         )  # Black sky
 
+    def _synthetic_weather_data(self):
+        return {
+            "name": self.city,
+            "weather": [{"main": "Clear", "description": "clear sky"}],
+            "main": {"temp": 18.0, "humidity": 55, "pressure": 1013},
+            "wind": {"speed": 3.5},
+            "clouds": {"all": 10},
+            "synthetic": True,
+        }
+
     def _fetch_weather_data(self):
+        if headless_active():
+            self.logger.warning(
+                "LUNAR_HEADLESS set; using synthetic weather data (no network calls)."
+            )
+            return self._synthetic_weather_data()
+        if not self.weather_api_key:
+            self.logger.warning(
+                "api_keys.openweathermap not configured; using synthetic weather data."
+            )
+            return self._synthetic_weather_data()
         try:
             url = f"http://api.openweathermap.org/data/2.5/weather?q={self.city}&appid={self.weather_api_key}&units=metric"
             response = requests.get(url)
@@ -33,8 +54,10 @@ class DataDrivenCityscape:
             weather_data = response.json()
             return weather_data
         except requests.exceptions.RequestException as e:
-            self.logger.error(f"Error fetching weather data: {e}", exc_info=True)
-            return None
+            self.logger.warning(
+                f"Error fetching weather data ({e}); using synthetic weather data."
+            )
+            return self._synthetic_weather_data()
 
     def _get_cityscape_commands_from_gpt4(self, data_blob):
         prompt = f"Given the following data blob (weather, market, social media, etc.):\n\n{json.dumps(data_blob, indent=2)}\n\nGenerate concise, high-level design commands for a generative cityscape. For example, 'tall glass spires for bullish markets', 'low, sprawling buildings for calm weather', 'bright, neon lights for high social media activity'. Focus on architectural style, height, lighting, and overall mood. Provide only the commands, no conversational filler."

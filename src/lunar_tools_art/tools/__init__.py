@@ -1,0 +1,47 @@
+"""Tool resolution: real hardware/cloud classes, swapped for deterministic
+fakes when LUNAR_HEADLESS=1 (see headless.py).
+
+Error contract for hardware-backed tools in this package: a tool raises
+once, on its *first* hard failure (e.g. no input device, no output device),
+via a specific exception (see ``exceptions.HardwareUnavailableError``). That
+failure also flips the tool into a "degraded" state. After that single raise,
+further calls to the same degraded method are non-raising: they log a
+warning once and then return ``None`` (or otherwise no-op) on every
+subsequent call, rather than raising or logging repeatedly. Callers should
+treat a ``None`` return from a degraded tool as "hardware unavailable," not
+as "no data this call."
+"""
+
+from . import headless as _hl
+from ._legacy_cloud import (  # noqa: F401
+    SDXL_LCM,
+    SDXL_TURBO,
+    Dalle3ImageGenerator,
+    FluxImageGenerator,
+)
+from .audio import AudioRecorder, SoundPlayer  # noqa: F401
+from .camera import WebCam  # noqa: F401
+from .display import Renderer  # noqa: F401
+from .input import KeyboardInput, MidiInput  # noqa: F401
+from .net import ZMQPairEndpoint  # noqa: F401
+from .stt import Speech2Text, Transcription  # noqa: F401
+from .tts import Text2Speech  # noqa: F401
+
+_FAKES = {
+    "Renderer": _hl.FakeRenderer,
+    "WebCam": _hl.FakeWebCam,
+    "AudioRecorder": _hl.FakeAudioRecorder,
+    "SoundPlayer": _hl.FakeSoundPlayer,
+    "KeyboardInput": _hl.FakeKeyboardInput,
+    "MidiInput": _hl.FakeMidiInput,
+    "Speech2Text": _hl.FakeSpeech2Text,
+    "Text2Speech": _hl.FakeText2Speech,
+    "ZMQPairEndpoint": _hl.FakeZMQPairEndpoint,
+}
+
+
+def resolve(name: str):
+    """Return the fake class in headless mode, else the real one."""
+    if _hl.headless_active() and name in _FAKES:
+        return _FAKES[name]
+    return globals()[name]

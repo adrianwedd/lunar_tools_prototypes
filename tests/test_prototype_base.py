@@ -5,6 +5,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
+from src.lunar_tools_art.loop_utils import MainLoopQueue
 from src.lunar_tools_art.prototype_base import (
     AIPrototype,
     InteractivePrototype,
@@ -35,6 +36,32 @@ class MockPrototype(PrototypeBase):
 
     def cleanup(self):
         self.cleanup_called = True
+
+
+class ConcreteInteractivePrototype(InteractivePrototype):
+    """Minimal concrete subclass for testing InteractivePrototype."""
+
+    def setup(self):
+        pass
+
+    def update(self):
+        pass
+
+    def cleanup(self):
+        pass
+
+
+class ConcreteAIPrototype(AIPrototype):
+    """Minimal concrete subclass for testing AIPrototype."""
+
+    def setup(self):
+        pass
+
+    def update(self):
+        pass
+
+    def cleanup(self):
+        pass
 
 
 @pytest.fixture
@@ -133,8 +160,13 @@ class TestPrototypeBase:
         config = {"local_param": "local_value"}
         prototype = MockPrototype(mock_manager, **config)
 
-        # Manager global config
-        mock_manager.config.get = Mock(return_value="global_value")
+        # Manager global config: only "global_param" resolves, everything
+        # else falls back to the caller-supplied default.
+        mock_manager.config.get = Mock(
+            side_effect=lambda key, default=None: (
+                "global_value" if key == "global_param" else default
+            )
+        )
 
         # Local config takes precedence
         assert prototype.get_config("local_param") == "local_value"
@@ -191,6 +223,116 @@ class TestPrototypeBase:
         assert mock_prototype.cleanup_called
 
 
+class QueuePostingPrototype(PrototypeBase):
+    """Posts to manager.main_queue from a worker thread during setup, then
+    exits immediately so run() only loops once."""
+
+    def __init__(self, *args, flag=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.flag = flag
+
+    def setup(self):
+        import threading
+
+        def poster():
+            self.manager.main_queue.post(self.flag.append, 1)
+
+        t = threading.Thread(target=poster)
+        t.start()
+        t.join()
+
+    def update(self):
+        pass
+
+    def cleanup(self):
+        pass
+
+
+class ConcurrentQueuePostingPrototype(PrototypeBase):
+    """Starts a non-joined worker thread in setup() that waits for the main
+    loop's first update() to begin, then posts to manager.main_queue while
+    run()'s loop is actively iterating -- genuine concurrent posting, not a
+    post-then-join-before-run scenario."""
+
+    def __init__(self, *args, flag=None, update_started=None, posted=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.flag = flag
+        self.update_started = update_started
+        self.posted = posted
+        self.iterations = 0
+        self.thread = None
+        self.loop_delay = 0
+
+    def setup(self):
+        import threading
+
+        def poster():
+            # Wait until the main loop has begun iterating (i.e. update()
+            # has been called at least once) before posting, so the post
+            # genuinely races with the running loop instead of happening
+            # before it starts.
+            assert self.update_started.wait(timeout=5), "update() never started"
+            self.manager.main_queue.post(self.flag.append, 1)
+            self.posted.set()
+
+        self.thread = threading.Thread(target=poster)
+        self.thread.start()
+
+    def update(self):
+        import time
+
+        self.iterations += 1
+        self.update_started.set()
+        # Yield the GIL so the poster thread gets scheduled even on a
+        # slow single-core CI runner.
+        time.sleep(0.001)
+
+    def should_exit(self):
+        # Exit once the posted flag has been drained, capped so the test
+        # can't hang if draining somehow fails.
+        return bool(self.flag) or self.iterations >= 2000
+
+    def cleanup(self):
+        pass
+
+
+class TestMainQueueDraining:
+    def test_run_drains_main_queue_posted_during_setup(self, mock_manager):
+        mock_manager.main_queue = MainLoopQueue()
+        flag = []
+        prototype = QueuePostingPrototype(mock_manager, flag=flag)
+        prototype.should_exit = Mock(return_value=True)
+
+        prototype.run()
+
+        assert flag == [1]
+
+    def test_run_drains_main_queue_posted_concurrently_during_loop(self, mock_manager):
+        """A worker thread posts to manager.main_queue WHILE run()'s loop is
+        actively iterating (not before it starts), exercising genuine
+        concurrent posting rather than a synchronous post-then-join."""
+        import threading
+
+        mock_manager.main_queue = MainLoopQueue()
+        flag = []
+        update_started = threading.Event()
+        posted = threading.Event()
+        prototype = ConcurrentQueuePostingPrototype(
+            mock_manager,
+            flag=flag,
+            update_started=update_started,
+            posted=posted,
+        )
+
+        prototype.run()
+
+        assert posted.wait(timeout=5), "worker thread never posted"
+        assert flag == [1]
+        prototype.thread.join(timeout=5)
+        assert not prototype.thread.is_alive()
+        assert prototype.iterations < 2000, "loop hit iteration cap instead of draining"
+
+
 class TestInteractivePrototype:
     """Test the InteractivePrototype class."""
 
@@ -204,7 +346,7 @@ class TestInteractivePrototype:
 
     def test_initialization(self, interactive_manager):
         """Test interactive prototype initialization."""
-        prototype = InteractivePrototype(interactive_manager)
+        prototype = ConcreteInteractivePrototype(interactive_manager)
 
         assert prototype.speech2text == interactive_manager.speech2text
         assert prototype.audio_recorder == interactive_manager.audio_recorder
@@ -212,7 +354,7 @@ class TestInteractivePrototype:
 
     def test_get_user_speech_success(self, interactive_manager):
         """Test successful speech capture."""
-        prototype = InteractivePrototype(interactive_manager)
+        prototype = ConcreteInteractivePrototype(interactive_manager)
 
         # Mock successful audio recording and transcription
         mock_audio = b"fake_audio_data"
@@ -227,7 +369,7 @@ class TestInteractivePrototype:
 
     def test_get_user_speech_failure(self, interactive_manager):
         """Test speech capture failure scenarios."""
-        prototype = InteractivePrototype(interactive_manager)
+        prototype = ConcreteInteractivePrototype(interactive_manager)
 
         # No audio recorded
         interactive_manager.audio_recorder.record.return_value = None
@@ -254,81 +396,128 @@ class TestAIPrototype:
     @pytest.fixture
     def ai_manager(self, mock_manager):
         """Manager with AI tools."""
-        mock_manager.gpt4 = Mock()
+        mock_manager.llm_backend = Mock()
+        mock_manager.gpt4 = mock_manager.llm_backend  # backward-compat alias
         mock_manager.text2speech = Mock()
         mock_manager.dalle = Mock()
         mock_manager.sdxl = Mock()
+        # image_gen doesn't exist yet (added Task 9); explicit None so
+        # getattr(..., "image_gen", None) doesn't pick up a Mock auto-attribute.
+        mock_manager.image_gen = None
         return mock_manager
 
     def test_initialization(self, ai_manager):
         """Test AI prototype initialization."""
-        prototype = AIPrototype(ai_manager)
+        prototype = ConcreteAIPrototype(ai_manager)
 
-        assert prototype.llm == ai_manager.gpt4
+        assert prototype.llm == ai_manager.llm_backend
         assert prototype.text2speech == ai_manager.text2speech
-        assert prototype.dalle == ai_manager.dalle
-        assert prototype.sdxl == ai_manager.sdxl
+        assert prototype.dalle == ai_manager.dalle3
+        assert prototype.sdxl == ai_manager.sdxl_turbo
 
     def test_generate_text_success(self, ai_manager):
         """Test successful text generation."""
-        prototype = AIPrototype(ai_manager)
+        prototype = ConcreteAIPrototype(ai_manager)
 
-        ai_manager.gpt4.chat.return_value = "Generated text"
+        ai_manager.llm_backend.generate.return_value = "Generated text"
 
-        result = prototype.generate_text("Test prompt", temperature=0.7)
+        result = prototype.generate_text("Test prompt")
 
         assert result == "Generated text"
-        ai_manager.gpt4.chat.assert_called_once_with("Test prompt", temperature=0.7)
+        ai_manager.llm_backend.generate.assert_called_once_with(
+            "Test prompt", system_prompt=None
+        )
+
+    def test_generate_text_passes_system_prompt(self, ai_manager):
+        """system_prompt kwarg is forwarded to the backend."""
+        prototype = ConcreteAIPrototype(ai_manager)
+
+        ai_manager.llm_backend.generate.return_value = "ok"
+
+        result = prototype.generate_text("Test prompt", system_prompt="You are terse.")
+
+        assert result == "ok"
+        ai_manager.llm_backend.generate.assert_called_once_with(
+            "Test prompt", system_prompt="You are terse."
+        )
+
+    def test_generate_text_drops_unsupported_kwargs(self, ai_manager):
+        """Unsupported kwargs (e.g. temperature) are dropped, not raised."""
+        prototype = ConcreteAIPrototype(ai_manager)
+
+        ai_manager.llm_backend.generate.return_value = "ok"
+
+        result = prototype.generate_text("Test prompt", temperature=0.5)
+
+        assert result == "ok"
+        ai_manager.llm_backend.generate.assert_called_once_with(
+            "Test prompt", system_prompt=None
+        )
 
     def test_generate_text_failure(self, ai_manager):
         """Test text generation failure."""
-        prototype = AIPrototype(ai_manager)
+        prototype = ConcreteAIPrototype(ai_manager)
 
-        ai_manager.gpt4.chat.side_effect = Exception("API error")
+        ai_manager.llm_backend.generate.side_effect = Exception("API error")
 
         result = prototype.generate_text("Test prompt")
 
         assert result is None
 
-    def test_generate_image_dalle(self, ai_manager):
-        """Test image generation with DALL-E."""
-        prototype = AIPrototype(ai_manager)
+    def test_generate_image_uses_image_gen_when_available(self, ai_manager):
+        """Test image generation prefers manager.image_gen when present."""
+        ai_manager.image_gen = Mock()
+        ai_manager.image_gen.generate.return_value = (
+            "/path/to/image.jpg",
+            {"prompt": "Test prompt"},
+        )
+        prototype = ConcreteAIPrototype(ai_manager)
 
-        ai_manager.dalle.generate.return_value = "/path/to/image.jpg"
+        result = prototype.generate_image("Test prompt")
+
+        assert result == "/path/to/image.jpg"
+        ai_manager.image_gen.generate.assert_called_once_with("Test prompt")
+
+    def test_generate_image_dalle_fallback(self, ai_manager):
+        """Test image generation falls back to the legacy dalle tool."""
+        prototype = ConcreteAIPrototype(ai_manager)
+
+        ai_manager.dalle3.generate.return_value = "/path/to/image.jpg"
 
         result = prototype.generate_image("Test prompt", generator="dalle")
 
         assert result == "/path/to/image.jpg"
-        ai_manager.dalle.generate.assert_called_once_with("Test prompt")
+        ai_manager.dalle3.generate.assert_called_once_with("Test prompt")
 
-    def test_generate_image_sdxl(self, ai_manager):
-        """Test image generation with SDXL."""
-        prototype = AIPrototype(ai_manager)
+    def test_generate_image_sdxl_fallback(self, ai_manager):
+        """Test image generation falls back to the legacy sdxl tool."""
+        prototype = ConcreteAIPrototype(ai_manager)
 
-        ai_manager.sdxl.generate.return_value = "/path/to/image.jpg"
+        ai_manager.sdxl_turbo.generate.return_value = "/path/to/image.jpg"
 
         result = prototype.generate_image("Test prompt", generator="sdxl")
 
         assert result == "/path/to/image.jpg"
-        ai_manager.sdxl.generate.assert_called_once_with("Test prompt")
+        ai_manager.sdxl_turbo.generate.assert_called_once_with("Test prompt")
 
     def test_generate_image_unavailable_generator(self, ai_manager):
-        """Test image generation with unavailable generator."""
-        prototype = AIPrototype(ai_manager)
+        """Test image generation raises when no generator is available."""
+        from src.lunar_tools_art.exceptions import AIServiceError
+
+        prototype = ConcreteAIPrototype(ai_manager)
 
         # Remove dalle from manager
         delattr(ai_manager, "dalle")
         prototype.dalle = None
 
-        result = prototype.generate_image("Test prompt", generator="dalle")
-
-        assert result is None
+        with pytest.raises(AIServiceError):
+            prototype.generate_image("Test prompt", generator="dalle")
 
     def test_generate_image_failure(self, ai_manager):
         """Test image generation failure."""
-        prototype = AIPrototype(ai_manager)
+        prototype = ConcreteAIPrototype(ai_manager)
 
-        ai_manager.dalle.generate.side_effect = Exception("Generation failed")
+        ai_manager.dalle3.generate.side_effect = Exception("Generation failed")
 
         result = prototype.generate_image("Test prompt", generator="dalle")
 

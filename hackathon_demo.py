@@ -7,7 +7,7 @@ An interactive art installation that reads your soul through your face and voice
 then manifests a unique AI entity that reflects your deepest emotional state.
 
 HARDWARE REQUIREMENTS:
-- Raspberry Pi 5 
+- Raspberry Pi 5
 - Hailo8L NPU (13 TOPS AI acceleration)
 - Pi Camera Module
 - Audio input/output
@@ -15,7 +15,7 @@ HARDWARE REQUIREMENTS:
 
 FEATURES:
 ✨ Real-time emotion detection via camera + NPU
-🎯 Voice sentiment analysis 
+🎯 Voice sentiment analysis
 🤖 Dynamic AI entity personality generation
 🎨 Generative visual art responding to emotions
 🗣️ Synthesized voice with emotional modulation
@@ -26,11 +26,11 @@ Controls: SPACE to speak, ESC to exit
 """
 
 import sys
-import os
+
 
 def show_demo_info():
     """Display hackathon project information"""
-    
+
     print("=" * 80)
     print("🎭 HACKATHON PROJECT: AI Mirror of Truth")
     print("=" * 80)
@@ -72,9 +72,10 @@ def show_demo_info():
     print("   6. 🔄 Entity personality evolves as interaction continues")
     print()
 
+
 def show_technical_details():
     """Show technical implementation details"""
-    
+
     print("🔬 TECHNICAL IMPLEMENTATION:")
     print("=" * 80)
     print()
@@ -82,7 +83,9 @@ def show_technical_details():
     print("   Camera → Face Detection → Hailo8L NPU → Emotion Classification")
     print("   • Uses optimized emotion recognition models on Hailo8L")
     print("   • Real-time processing at 30 FPS")
-    print("   • 7 emotion classes: joy, sadness, anger, fear, surprise, contempt, neutral")
+    print(
+        "   • 7 emotion classes: joy, sadness, anger, fear, surprise, contempt, neutral"
+    )
     print("   • Confidence scoring and temporal smoothing")
     print()
     print("🎵 VOICE SENTIMENT ANALYSIS:")
@@ -113,9 +116,10 @@ def show_technical_details():
     print("   • Power-efficient continuous operation")
     print()
 
+
 def show_demo_controls():
     """Show demo controls and usage"""
-    
+
     print("🎮 DEMO CONTROLS & USAGE:")
     print("=" * 80)
     print()
@@ -143,16 +147,19 @@ def show_demo_controls():
     print("   • VISUAL DANCE  → Art continuously morphs with your emotions")
     print()
 
+
 def show_hackathon_pitch():
     """Show the hackathon pitch"""
-    
+
     print("🏆 HACKATHON PITCH:")
     print("=" * 80)
     print()
     print("💡 THE VISION:")
     print("   In an age of digital disconnection, we've created an AI that doesn't")
     print("   just understand you - it becomes a reflection of your deepest self.")
-    print("   The Mirror of Truth is more than art; it's digital empathy made manifest.")
+    print(
+        "   The Mirror of Truth is more than art; it's digital empathy made manifest."
+    )
     print()
     print("🎯 WHY THIS MATTERS:")
     print("   • Mental health through AI-assisted self-reflection")
@@ -184,9 +191,10 @@ def show_hackathon_pitch():
     print("   • Social features for shared emotional exploration")
     print()
 
+
 def main():
     """Main demo showcase"""
-    
+
     if len(sys.argv) > 1 and sys.argv[1] == "--pitch":
         show_hackathon_pitch()
         return
@@ -196,7 +204,7 @@ def main():
     elif len(sys.argv) > 1 and sys.argv[1] == "--controls":
         show_demo_controls()
         return
-    
+
     # Default: show all information
     show_demo_info()
     print()
@@ -206,7 +214,7 @@ def main():
     print()
     show_hackathon_pitch()
     print()
-    
+
     print("🎭 Ready to experience the Mirror of Truth?")
     print("   Run: python3 lunar_tools_demo.py --demo ai-mirror-of-truth")
     print()
@@ -215,6 +223,7 @@ def main():
     print("   python3 hackathon_demo.py --technical  # Technical details")
     print("   python3 hackathon_demo.py --controls   # Usage controls")
     print("=" * 80)
+
 
 if __name__ == "__main__":
     main()

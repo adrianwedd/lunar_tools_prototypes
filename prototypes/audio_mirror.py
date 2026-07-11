@@ -393,12 +393,24 @@ class AudioMirror(PrototypeBase):
         except Exception as e:
             self.logger.warning(f"TTS failed: {e}")
 
-    def _cleanup_last_playback(self):
-        """Clean up previous non-blocking playback process and temp file."""
+    def _cleanup_last_playback(self, force: bool = False):
+        """Clean up previous non-blocking playback process and temp file.
+
+        With ``force=True`` (final session cleanup), a still-running player
+        is terminated so neither the process nor its temp wav outlives us.
+        """
         if self._playback_proc is not None:
             self._playback_proc.poll()
-            if self._playback_proc.returncode is not None:
-                # Process finished — clean up
+            if self._playback_proc.returncode is None and force:
+                try:
+                    self._playback_proc.terminate()
+                    self._playback_proc.wait(timeout=2)
+                except Exception:
+                    try:
+                        self._playback_proc.kill()
+                    except Exception:  # nosec B110
+                        pass
+            if self._playback_proc.returncode is not None or force:
                 if self._playback_tmp:
                     try:
                         os.unlink(self._playback_tmp)
@@ -466,8 +478,8 @@ class AudioMirror(PrototypeBase):
             except Exception as e:
                 self.logger.warning(f"Session cleanup failed: {e}")
 
-        # Clean up local temp files
-        self._cleanup_last_playback()
+        # Clean up local temp files, terminating any still-running playback
+        self._cleanup_last_playback(force=True)
         capture_file = f"/tmp/audio-mirror-{self.session_id}-capture.wav"  # nosec B108
         try:
             if os.path.exists(capture_file):
@@ -503,6 +515,8 @@ class AudioMirror(PrototypeBase):
                 "anger": (0, 0, 255),
                 "fear": (200, 100, 200),
                 "surprise": (0, 255, 255),
+                "disgust": (0, 150, 75),
+                "contempt": (120, 120, 180),
                 "neutral": (200, 200, 200),
             }
             color = color_map.get(primary, (200, 200, 200))

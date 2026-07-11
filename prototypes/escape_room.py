@@ -90,11 +90,15 @@ class EscapeRoomGame:
 
             if command:
                 intent_prompt = f"Analyze the following user command and determine their intent. Respond with 'solve_puzzle', 'get_hint', or 'unknown'. Command: '{command}'"
-                intent = (
-                    self.lunar_tools_art_manager.gpt4.generate(intent_prompt)
-                    .strip()
-                    .lower()
-                )
+                gpt4 = self.lunar_tools_art_manager.gpt4
+                response = gpt4.generate(intent_prompt) if gpt4 else None
+                if response is None:
+                    self.logger.warning(
+                        "LLM backend unavailable; treating command intent as unknown."
+                    )
+                    intent = "unknown"
+                else:
+                    intent = response.strip().lower()
                 self.logger.info(f"Detected intent: {intent}")
 
                 if intent == "solve_puzzle":
