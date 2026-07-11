@@ -7,7 +7,8 @@ for better error management across all prototypes.
 
 import functools
 import logging
-from typing import Any, Callable, Optional
+from collections.abc import Callable
+from typing import Any
 
 import requests
 
@@ -140,7 +141,7 @@ def handle_file_operations(
 
 
 def handle_graceful_shutdown(
-    logger: logging.Logger, cleanup_func: Optional[Callable] = None
+    logger: logging.Logger, cleanup_func: Callable | None = None
 ):
     """
     Decorator for handling graceful shutdown on KeyboardInterrupt.

@@ -17,7 +17,7 @@ jobs:
         fetch-depth: 0  # Full history for better analysis
 
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: '3.12'
 
@@ -40,7 +40,7 @@ jobs:
         detect-secrets scan --all-files --baseline .secrets.baseline || true
 
     - name: Upload security reports
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: always()
       with:
         name: security-reports
@@ -60,12 +60,12 @@ jobs:
       uses: actions/checkout@v4
 
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
 
     - name: Cache pip dependencies
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: ~/.cache/pip
         key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt', '**/pyproject.toml') }}
@@ -95,7 +95,7 @@ jobs:
         LUNAR_HEADLESS: "1"
 
     - name: Upload test reports
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: always()
       with:
         name: test-reports-py${{ matrix.python-version }}
@@ -111,13 +111,13 @@ jobs:
       uses: actions/checkout@v4
 
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: '3.12'
 
     - name: Install quality tools
       run: |
-        pip install black isort ruff mypy
+        pip install black==25.1.0 isort==6.0.1 ruff==0.12.7 mypy
 
     - name: Check code formatting with Black
       run: |

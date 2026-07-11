@@ -135,4 +135,7 @@ class EmotionDetector:
         logits = np.asarray(logits).reshape(-1)
         exp = np.exp(logits - np.max(logits))
         probs = exp / exp.sum()
-        return {label: float(prob) for label, prob in zip(FERPLUS_LABELS, probs)}
+        return {
+            label: float(prob)
+            for label, prob in zip(FERPLUS_LABELS, probs, strict=False)
+        }
