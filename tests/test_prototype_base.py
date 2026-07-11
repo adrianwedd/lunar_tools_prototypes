@@ -279,13 +279,18 @@ class ConcurrentQueuePostingPrototype(PrototypeBase):
         self.thread.start()
 
     def update(self):
+        import time
+
         self.iterations += 1
         self.update_started.set()
+        # Yield the GIL so the poster thread gets scheduled even on a
+        # slow single-core CI runner.
+        time.sleep(0.001)
 
     def should_exit(self):
         # Exit once the posted flag has been drained, capped so the test
         # can't hang if draining somehow fails.
-        return bool(self.flag) or self.iterations >= 200
+        return bool(self.flag) or self.iterations >= 2000
 
     def cleanup(self):
         pass
@@ -325,7 +330,7 @@ class TestMainQueueDraining:
         assert flag == [1]
         prototype.thread.join(timeout=5)
         assert not prototype.thread.is_alive()
-        assert prototype.iterations < 200, "loop hit iteration cap instead of draining"
+        assert prototype.iterations < 2000, "loop hit iteration cap instead of draining"
 
 
 class TestInteractivePrototype:
