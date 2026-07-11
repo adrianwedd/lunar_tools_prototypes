@@ -149,3 +149,13 @@ class SoundPlayer:
     # 8 prototypes call `play_sound` — kept as an alias with blocking=True default.
     def play_sound(self, path):
         return self.play_audio(path, blocking=True)
+
+    def stop_sound(self):
+        if self._degraded:
+            return None
+
+        import sounddevice as sd
+
+        if hasattr(sd, "stop"):
+            sd.stop()
+        return None

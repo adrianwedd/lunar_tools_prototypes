@@ -29,41 +29,7 @@ FILES = sorted(p for p in PROTO_DIR.glob("*.py") if p.name not in SKIP)
 
 # Known-broken prototypes (from earlier QA / this sweep). Keep in sync with
 # PROTOTYPE_STATUS.md.
-XFAIL_REASONS = {
-    "cosmic-soundscape.py": (
-        "stub file — only a title comment, no class/implementation exists; "
-        "needs-rework (never implemented)"
-    ),
-    "acoustic-fingerprint-painter.py": (
-        "writes a temp WAV via a stubbed AudioRecorder.stop_recording() and "
-        "then feeds a None/invalid path into json.loads-style parsing under "
-        "the headless fake recorder; needs-rework, not a test issue"
-    ),
-    "time-shifted-echo-chamber.py": (
-        "requires api_keys.openweathermap in settings.toml which is not "
-        "configured in this environment; needs-rework"
-    ),
-    "data-driven-cityscape.py": (
-        "requires api_keys.openweathermap in settings.toml which is not "
-        "configured in this environment; needs-rework"
-    ),
-    "chat-room-narrative-quilt.py": (
-        "references undefined self.l (typo/dead code) during construction; "
-        "needs-rework"
-    ),
-    "escape_room.py": (
-        "calls .strip() directly on gpt4.generate()'s return value without a "
-        "None guard; under LUNAR_HEADLESS the fake Speech2Text returns a "
-        "truthy transcript, driving that code path when the LLM backend is "
-        "unavailable (stub-era code, not a test issue)"
-    ),
-    "virtual_time_travel.py": (
-        "calls .strip() directly on gpt4.generate()'s return value without a "
-        "None guard; under LUNAR_HEADLESS the fake Speech2Text returns a "
-        "truthy transcript, driving that code path when the LLM backend is "
-        "unavailable (stub-era code, not a test issue)"
-    ),
-}
+XFAIL_REASONS = {}
 
 
 def load(path):

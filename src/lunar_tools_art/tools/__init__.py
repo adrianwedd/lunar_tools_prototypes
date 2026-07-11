@@ -25,6 +25,7 @@ from .display import Renderer  # noqa: F401
 from .input import KeyboardInput, MidiInput  # noqa: F401
 from .net import ZMQPairEndpoint  # noqa: F401
 from .stt import Speech2Text, Transcription  # noqa: F401
+from .tts import Text2Speech  # noqa: F401
 
 _FAKES = {
     "Renderer": _hl.FakeRenderer,
@@ -34,6 +35,7 @@ _FAKES = {
     "KeyboardInput": _hl.FakeKeyboardInput,
     "MidiInput": _hl.FakeMidiInput,
     "Speech2Text": _hl.FakeSpeech2Text,
+    "Text2Speech": _hl.FakeText2Speech,
     "ZMQPairEndpoint": _hl.FakeZMQPairEndpoint,
 }
 

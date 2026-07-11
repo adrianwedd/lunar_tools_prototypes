@@ -27,38 +27,55 @@ class AugmentedAudioTour:
             }
         )
         self.check_interval = check_interval
+        self._vision_unavailable_logged = False
 
     def detect_position(self, img):
-        # Use GPT-4 Vision to detect position based on the image
+        backend = self.lunar_tools_art_manager.llm_backend
+        if backend is None:
+            if not self._vision_unavailable_logged:
+                self.logger.warning(
+                    "No LLM backend configured; position detection disabled, "
+                    "reporting 'unknown'."
+                )
+                self._vision_unavailable_logged = True
+            return "unknown"
+
+        pil_img = Image.fromarray(img)
+        temp_fd, temp_image_path = tempfile.mkstemp(
+            suffix=".png", prefix=f"webcam_frame_{uuid.uuid4().hex[:8]}_"
+        )
+        os.close(temp_fd)
+        pil_img.save(temp_image_path)
+
+        prompt = (
+            "Analyze this image and identify the current section or landmark. "
+            "Respond concisely with the section name (e.g., 'section_1', "
+            "'section_2', 'entrance', 'exit'). If unsure, respond 'unknown'."
+        )
         try:
-            # Convert numpy array image to PIL Image for Dalle3
-            pil_img = Image.fromarray(img)
-
-            # Save the image to a secure temporary file for GPT-4 Vision
-            temp_fd, temp_image_path = tempfile.mkstemp(
-                suffix=".png", prefix=f"webcam_frame_{uuid.uuid4().hex[:8]}_"
-            )
-            os.close(temp_fd)  # Close the file descriptor, keep the path
-            pil_img.save(temp_image_path)
-
-            prompt = "Analyze this image and identify the current section or landmark. Respond concisely with the section name (e.g., 'section_1', 'section_2', 'entrance', 'exit'). If unsure, respond 'unknown'."
-            response = self.lunar_tools_art_manager.gpt4.generate_vision(
-                prompt, image_path=temp_image_path
-            )
-
-            # Clean up the temporary image file
+            response = backend.generate_vision(prompt, image_path=temp_image_path)
+        except NotImplementedError:
+            if not self._vision_unavailable_logged:
+                self.logger.warning(
+                    f"LLM backend {type(backend).__name__} has no vision support; "
+                    "position detection degraded to 'unknown'."
+                )
+                self._vision_unavailable_logged = True
+            return "unknown"
+        finally:
             if os.path.exists(temp_image_path):
                 try:
                     os.remove(temp_image_path)
                 except OSError as e:
                     self.logger.warning(f"Failed to remove {temp_image_path}: {e}")
 
-            detected_section = response.strip().lower()
-            self.logger.info(f"Detected position: {detected_section}")
-            return detected_section
-        except Exception as e:
-            self.logger.error(f"Error detecting position: {e}", exc_info=True)
-            return "unknown"  # Return unknown on error
+        if not response:
+            self.logger.warning("Vision backend returned no response; 'unknown'.")
+            return "unknown"
+
+        detected_section = response.strip().lower()
+        self.logger.info(f"Detected position: {detected_section}")
+        return detected_section
 
     def run(self):
         self.logger.info("Augmented Audio Tours: Press 'q' to quit.")

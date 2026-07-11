@@ -87,6 +87,9 @@ class FakeSoundPlayer:
     def play_audio(self, *args, **kwargs):
         return None
 
+    def stop_sound(self, *args, **kwargs):
+        return None
+
 
 class FakeKeyboardInput:
     def __init__(self, *args, **kwargs):
@@ -118,6 +121,31 @@ class FakeSpeech2Text:
         from .stt import Transcription
 
         return Transcription("hello world", confidence=1.0, language="en")
+
+
+from .tts import Text2Speech as _Text2Speech  # noqa: E402
+
+
+class FakeText2Speech(_Text2Speech):
+    """Mirrors the Text2Speech adapter contract: generate(text, voice=None)
+    writes a (tiny, silent) valid WAV and returns its path. Subclasses the
+    real adapter so isinstance checks hold, but never touches a VoiceClient."""
+
+    def __init__(self, *args, **kwargs):
+        pass
+
+    def generate(self, text, voice=None, **kwargs):
+        import tempfile
+        import wave
+
+        fd, path = tempfile.mkstemp(suffix=".wav", prefix="fake-tts-")
+        os.close(fd)
+        with wave.open(path, "wb") as w:
+            w.setnchannels(1)
+            w.setsampwidth(2)
+            w.setframerate(16000)
+            w.writeframes(b"\x00\x00" * 1600)  # 0.1s of silence
+        return path
 
 
 class FakeZMQPairEndpoint:

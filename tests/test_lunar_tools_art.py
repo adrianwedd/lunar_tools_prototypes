@@ -155,12 +155,6 @@ def test_emotional_landscape_generator_smoke_test():
 
 
 # Smoke test for escape_room.py
-@pytest.mark.xfail(
-    reason="prototype calls .strip() directly on gpt4.generate()'s return value "
-    "without a None guard; under LUNAR_HEADLESS the fake Speech2Text returns a "
-    "truthy transcript, driving that code path when the LLM backend is "
-    "unavailable (stub-era code, not a test issue)"
-)
 def test_escape_room_smoke_test():
     from prototypes.escape_room import EscapeRoomGame
 
@@ -232,12 +226,6 @@ def test_temporal_art_gallery_smoke_test():
 
 
 # Smoke test for virtual_time_travel.py
-@pytest.mark.xfail(
-    reason="prototype calls .strip() directly on gpt4.generate()'s return value "
-    "without a None guard; under LUNAR_HEADLESS the fake Speech2Text returns a "
-    "truthy transcript, driving that code path when the LLM backend is "
-    "unavailable (stub-era code, not a test issue)"
-)
 def test_virtual_time_travel_smoke_test():
     from prototypes.virtual_time_travel import TimeTravelExperience
 
@@ -299,9 +287,6 @@ def test_collaborative_canvas_smoke_test():
 
 
 # Smoke test for acoustic-fingerprint-painter.py
-@pytest.mark.xfail(
-    reason="prototype's audio feature extraction writes a temp WAV that soundfile cannot parse and its GPT stroke-parameter parsing crashes on a None response (stub-era code, not a test issue)"
-)
 def test_acoustic_fingerprint_painter_smoke_test():
     module = _load_prototype_module(
         "acoustic-fingerprint-painter.py", "acoustic_fingerprint_painter"
@@ -311,16 +296,16 @@ def test_acoustic_fingerprint_painter_smoke_test():
     manager = Manager()
     painter = AcousticFingerprintPainter(manager)
     try:
-        manager.keyboard_input.is_key_pressed = MagicMock(side_effect=[False, True])
+        # run() polls several keys per iteration; exit via "q" on first check
+        manager.keyboard_input.is_key_pressed = MagicMock(
+            side_effect=lambda key: key == "q"
+        )
         painter.run()
     except Exception as e:
         pytest.fail(f"AcousticFingerprintPainter.run() raised an exception: {e}")
 
 
 # Smoke test for time-shifted-echo-chamber.py
-@pytest.mark.xfail(
-    reason="prototype requires api_keys.openweathermap config which is not part of the test environment; prototype needs a mockable weather client (stub-era code)"
-)
 def test_time_shifted_echo_chamber_smoke_test():
     module = _load_prototype_module(
         "time-shifted-echo-chamber.py", "time_shifted_echo_chamber"
@@ -330,16 +315,16 @@ def test_time_shifted_echo_chamber_smoke_test():
     manager = Manager()
     chamber = TimeShiftedEchoChamber(manager)
     try:
-        manager.keyboard_input.is_key_pressed = MagicMock(side_effect=[False, True])
+        # run() polls several keys per iteration; exit via "q" on first check
+        manager.keyboard_input.is_key_pressed = MagicMock(
+            side_effect=lambda key: key == "q"
+        )
         chamber.run()
     except Exception as e:
         pytest.fail(f"TimeShiftedEchoChamber.run() raised an exception: {e}")
 
 
 # Smoke test for data-driven-cityscape.py
-@pytest.mark.xfail(
-    reason="prototype requires api_keys.openweathermap config which is not part of the test environment; prototype needs a mockable weather client (stub-era code)"
-)
 def test_data_driven_cityscape_smoke_test():
     module = _load_prototype_module("data-driven-cityscape.py", "data_driven_cityscape")
     DataDrivenCityscape = module.DataDrivenCityscape
@@ -374,9 +359,6 @@ def test_real_time_glitch_art_lab_smoke_test():
 
 
 # Smoke test for neural-transfer-music-visualizer.py
-@pytest.mark.xfail(
-    reason="prototype calls SoundPlayer.stop_sound(), a method that does not exist on the current SoundPlayer tool (stub-era code)"
-)
 def test_neural_transfer_music_visualizer_smoke_test():
     module = _load_prototype_module(
         "neural-transfer-music-visualizer.py", "neural_transfer_music_visualizer"
@@ -393,9 +375,6 @@ def test_neural_transfer_music_visualizer_smoke_test():
 
 
 # Smoke test for chat-room-narrative-quilt.py
-@pytest.mark.xfail(
-    reason="prototype's __init__ references self.l, an undefined attribute (stub-era code)"
-)
 def test_chat_room_narrative_quilt_smoke_test():
     module = _load_prototype_module(
         "chat-room-narrative-quilt.py", "chat_room_narrative_quilt"

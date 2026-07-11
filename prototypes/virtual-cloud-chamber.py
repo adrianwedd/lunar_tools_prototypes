@@ -67,6 +67,20 @@ class VirtualCloudChamber:
         self.narration_interval = 30  # Narrate every 30 seconds
         self.background_image = self._generate_vapor_background()
         self.loop_delay = loop_delay
+        self.narration_enabled = True
+        self._llm_warned = False
+        if self.gpt4 is None:
+            self.logger.warning(
+                "Virtual Cloud Chamber: LLM backend unavailable; narration "
+                "disabled, visuals continue."
+            )
+            self.narration_enabled = False
+        if self.text2speech is None:
+            self.logger.warning(
+                "Virtual Cloud Chamber: text2speech unavailable; narration "
+                "disabled, visuals continue."
+            )
+            self.narration_enabled = False
 
     def _generate_vapor_background(self):
         # Simple procedural vapor-like background
@@ -103,7 +117,7 @@ class VirtualCloudChamber:
         self.particles.append(Particle(x, y, vx, vy, color, size, trail_length))
 
     def _narrate_particle_journeys(self):
-        if not self.particles:
+        if not self.narration_enabled or not self.particles:
             return
 
         # Select a few interesting particles (e.g., longest trail, fastest, etc.)
@@ -112,9 +126,12 @@ class VirtualCloudChamber:
         )
         descriptions = []
         for p in interesting_particles:
+            start = p.trail[0] if p.trail else (p.x, p.y)
             descriptions.append(
-                f"A particle starting at ({int(p.trail[0][0])}, {int(p.trail[0][1])}) drifting towards ({int(p.x)}, {int(p.y)}) with a {len(p.trail)}-step trail."
+                f"A particle starting at ({int(start[0])}, {int(start[1])}) drifting towards ({int(p.x)}, {int(p.y)}) with a {len(p.trail)}-step trail."
             )
+        if not descriptions:
+            return
 
         prompt = (
             "Narrate the journeys of these particles in a poetic and scientific tone:\n\n"
@@ -123,17 +140,23 @@ class VirtualCloudChamber:
         self.logger.info("Requesting narration from GPT-4...")
         try:
             narration = self.gpt4.generate(prompt)
+            if not narration:
+                if not self._llm_warned:
+                    self.logger.warning(
+                        "Virtual Cloud Chamber: LLM returned no narration; "
+                        "skipping speech, visuals continue."
+                    )
+                    self._llm_warned = True
+                return
             self.logger.info(f"Narration: {narration}")
-            self.text2speech.generate(
-                narration, filename=".output/narration.mp3"
-            )  # Generate speech to a file
-            self.lunar_tools_art_manager.sound_player.play_sound(
-                ".output/narration.mp3"
-            )  # Play the generated speech
+            audio_path = self.text2speech.generate(narration)
+            self.lunar_tools_art_manager.sound_player.play_sound(audio_path)
         except Exception as e:
-            self.logger.error(
-                f"Error generating or playing narration: {e}", exc_info=True
+            self.logger.warning(
+                f"Narration unavailable ({e}); disabling narration, "
+                "visuals continue."
             )
+            self.narration_enabled = False
 
     def run(self):
         self.logger.info(

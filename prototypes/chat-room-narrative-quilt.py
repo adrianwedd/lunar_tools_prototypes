@@ -19,7 +19,7 @@ class ChatRoomNarrativeQuilt:
     ):
         self.lunar_tools_art_manager = lunar_tools_art_manager
         self.gpt4 = self.lunar_tools_art_manager.gpt4
-        self.dalle3 = self.l.lunar_tools_art_manager.dalle3
+        self.dalle3 = self.lunar_tools_art_manager.dalle3
         self.renderer = self.lunar_tools_art_manager.renderer
         self.keyboard_input = self.lunar_tools_art_manager.keyboard_input
         self.logger = self.lunar_tools_art_manager.logger

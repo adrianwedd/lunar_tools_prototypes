@@ -30,6 +30,11 @@ class LLMBackend(ABC):
     @abstractmethod
     def generate(self, prompt: str, system_prompt: str | None = None) -> str | None: ...
 
+    def generate_vision(self, prompt: str, image_path: str) -> str | None:
+        raise NotImplementedError(
+            f"{type(self).__name__} does not support vision input"
+        )
+
 
 class OllamaLocalBackend(LLMBackend):
     def __init__(

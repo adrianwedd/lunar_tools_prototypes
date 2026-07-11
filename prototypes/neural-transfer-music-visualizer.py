@@ -72,7 +72,7 @@ class NeuralTransferMusicVisualizer:
     def run(self):
         self.logger.info("Neural Transfer Music Visualizer: Press 'q' to quit.")
         self.logger.info(f"Playing audio track: {self.audio_track}")
-        self.sound_player.play_sound(self.audio_track, loop=True)  # Loop the music
+        self.sound_player.play_audio(self.audio_track, blocking=False)
 
         while True:
             if self.keyboard_input.is_key_pressed("q"):

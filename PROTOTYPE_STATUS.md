@@ -22,45 +22,45 @@ for everything unless otherwise noted.
 
 | Prototype | Status | Reason | Verified on hardware |
 |---|---|---|---|
-| acoustic-fingerprint-painter.py | needs-rework | Writes a temp WAV via the stubbed `AudioRecorder.stop_recording()` under `LUNAR_HEADLESS` and then feeds a None/invalid path into subsequent JSON parsing; pre-existing xfail carried into this sweep. | no |
+| acoustic-fingerprint-painter.py | works (fixed) | Fixed in this sweep: `_get_stroke_parameters_from_gpt4` now guards a `None` LLM backend and `None`/empty responses, parses via a fence/JSON-block-tolerant helper, and `_draw_stroke` sanitizes numeric/RGB inputs; the headless `FakeAudioRecorder` writes a real WAV so feature extraction succeeds. | no |
 | ai-dream-interpreter-prototype.py | works | Instantiates and runs cleanly. | no |
 | ai-fashion-show-prototype.py | works | Instantiates and runs cleanly. | no |
 | ai-mirror-of-truth.py | works | Covered by `tests/test_mirror_of_truth.py` (real emotion detection, Afterwords TTS, pluggable LLM, prosody — all headless-faked). Excluded from the generic smoke matrix (`SKIP` set) because it is a `PrototypeBase` subclass with a dedicated fixture-driven test. | no |
 | apocalypse_experience.py | works | Instantiates and runs cleanly. | no |
 | audio-reactive-fractal-forest.py | works | Instantiates and runs cleanly. | no |
 | audio_mirror.py | works | Covered by `tests/test_audio_mirror.py` and `tests/test_audio_mirror_fsm.py`. Excluded from the generic smoke matrix (`SKIP` set) for the same reason as `ai-mirror-of-truth.py`. | no |
-| augmented_audio_tours.py | degraded | `detect_position()` calls `gpt4.generate_vision(...)`, which does not exist on any `LLMBackend` implementation (vision support is deferred infra work, not part of this sweep). The call is wrapped in a broad `try/except`, so it degrades to `"unknown"` instead of crashing — construction and the smoke run both pass, but the vision feature itself is non-functional until a vision-capable backend/describe-then-generate path is added. | no |
-| chat-room-narrative-quilt.py | needs-rework | References an undefined `self.l` (typo/dead code) during construction; pre-existing xfail carried into this sweep. | no |
+| augmented_audio_tours.py | degraded | Vision-based position detection is now explicit rather than silently swallowed: `LLMBackend.generate_vision()` exists as an optional capability (default `NotImplementedError`), and `detect_position()` logs a one-time warning and returns `"unknown"` when the configured backend lacks vision. Feature remains non-functional until a vision-capable backend is added. | no |
+| chat-room-narrative-quilt.py | works (fixed) | Fixed in this sweep: corrected the `self.l.lunar_tools_art_manager` typo to `self.lunar_tools_art_manager` at construction. Constructs and runs cleanly headless. | no |
 | collaborative-canvas.py | works | Instantiates and runs cleanly; `.ip`/`.port` read/write on `ZMQPairEndpoint` supported per Task 5. | no |
 | collaborative_art.py | works | Instantiates and runs cleanly; `.ip`/`.port` writes supported by `ZMQPairEndpoint` (Task 5). | no |
-| cosmic-soundscape.py | needs-rework | File contains only a title comment (`# Voice-Activated Cosmic Soundscape Prototype`) — no class or implementation was ever written. | no |
-| data-driven-cityscape.py | needs-rework | Requires `api_keys.openweathermap` in `settings.toml`, which is not configured in this environment; pre-existing xfail carried into this sweep. | no |
+| cosmic-soundscape.py | works (fixed) | Implemented in this sweep: `InteractivePrototype` subclass that transcribes a spoken phrase, maps keywords to celestial motifs/mood palette, generates a cosmic image via `manager.image_gen`, and renders it; graceful fallbacks when speech or generation is unavailable. | no |
+| data-driven-cityscape.py | works (fixed) | Fixed in this sweep: missing `api_keys.openweathermap` no longer crashes construction (`config.get` instead of `get_or_raise`); `_fetch_weather_data` returns deterministic synthetic weather under `LUNAR_HEADLESS`, when the key is absent, or on HTTP failure — no network calls headless. | no |
 | dynamic_visuals.py | works | Instantiates and runs cleanly. | no |
 | emotional-landscape-generator-prototype.py | works | Instantiates and runs cleanly. | no |
-| escape_room.py | needs-rework | Calls `.strip()` directly on `gpt4.generate()`'s return value without a `None` guard; under `LUNAR_HEADLESS` the fake `Speech2Text` returns a truthy transcript, driving that code path when the LLM backend is unavailable. Pre-existing xfail carried into this sweep (stub-era code, not a test issue). | no |
+| escape_room.py | works (fixed) | Fixed in this sweep: LLM intent parsing now guards `gpt4` being `None` and `generate()` returning `None`, falling back to intent `"unknown"` with a logged warning instead of crashing. | no |
 | evolving-cosmic-mural-prototype.py | works | Instantiates and runs cleanly. | no |
 | generative-poetry-mosaic.py | works | Instantiates and runs cleanly. | no |
 | interactive-storytelling-canvas-prototype.py | works (fixed) | Fixed in this sweep: removed the `from utils import record_and_transcribe_speech` import (no top-level `utils` module exists) in favor of `self.speech2text.transcribe(duration=10)`, matching the convention used elsewhere (e.g. `speech_activated_art.py`); guarded the nonexistent `manager.glif_api` with `getattr(..., None)` (image visualization via Glif is out of scope for the current tools layer); fixed a `self.lunar_tools_manager` → `self.lunar_tools_art_manager`/`self.glif_api` typo in `visualize_story()`. | no |
 | interactive_storytelling.py | works | Instantiates and runs cleanly. | no |
-| neural-transfer-music-visualizer.py | needs-rework | Calls `SoundPlayer.stop_sound`, which does not exist on the tools-layer `SoundPlayer`; pre-existing xfail from the dedicated legacy `run()` test in `tests/test_lunar_tools_art.py` (construction-only smoke matrix passes). | no |
+| neural-transfer-music-visualizer.py | works (fixed) | Fixed in this sweep: `SoundPlayer.stop_sound()` added to the tools layer (with a `FakeSoundPlayer` no-op), and the prototype now uses non-blocking `play_audio(...)` instead of an invalid `play_sound(..., loop=True)` call. | no |
 | real-time-glitch-art-lab.py | works | Instantiates and runs cleanly. | no |
 | sentiment_analysis_display.py | works | Instantiates and runs cleanly. | no |
 | speech_activated_art.py | works | Instantiates and runs cleanly. | no |
 | temporal-art-gallery-prototype.py | works | Instantiates and runs cleanly. | no |
-| time-shifted-echo-chamber.py | needs-rework | Requires `api_keys.openweathermap` in `settings.toml`, which is not configured in this environment; pre-existing xfail carried into this sweep. | no |
-| virtual-cloud-chamber.py | degraded | `text2speech` unavailable in headless is caught and swallowed inside the prototype (consistent with `augmented_audio_tours.py`). | no |
-| virtual_time_travel.py | needs-rework | Calls `.strip()` directly on `gpt4.generate()`'s return value without a `None` guard; same root cause as `escape_room.py`. Pre-existing xfail carried into this sweep. | no |
+| time-shifted-echo-chamber.py | works (fixed) | The old xfail reason was a stale copy-paste from `data-driven-cityscape.py` — this prototype has no weather/network dependency. Constructs and runs cleanly headless against the fake recorder/player/keyboard tools. | no |
+| virtual-cloud-chamber.py | works (fixed) | Fixed in this sweep: added `FakeText2Speech` to the headless tools layer and routed `manager.text2speech` through `tools.resolve`; the prototype now uses the correct `generate(text) -> path` contract, warns once and disables narration (visuals continue) if the LLM or TTS is unavailable. | no |
+| virtual_time_travel.py | works (fixed) | The old xfail reason (`.strip()` on `gpt4.generate()`) was a copy-paste from `escape_room.py` and did not apply. Real run-loop fragilities fixed in this sweep: `None` `text2speech` and TTS `InferenceError` are now guarded/logged, and `renderer.render` is skipped when image generation returns `None`. | no |
 | whispers.py | works | Instantiates and runs cleanly. | no |
 
 ## Summary
 
 Totals across all 29 prototypes (27 legacy + `audio_mirror.py` + `ai-mirror-of-truth.py`):
 
-- **works**: 19
-- **degraded**: 2 (`augmented_audio_tours.py`, `virtual-cloud-chamber.py`)
-- **needs-rework**: 8 (`acoustic-fingerprint-painter.py`, `chat-room-narrative-quilt.py`, `cosmic-soundscape.py`, `data-driven-cityscape.py`, `escape_room.py`, `neural-transfer-music-visualizer.py`, `time-shifted-echo-chamber.py`, `virtual_time_travel.py`)
+- **works**: 28
+- **degraded**: 1 (`augmented_audio_tours.py` — vision-based position detection explicitly degrades to `"unknown"` until a vision-capable LLM backend exists)
+- **needs-rework**: 0
 
-None of the `needs-rework` items regress the test suite — they are asserted via `pytest.xfail` in `tests/test_prototype_smoke.py` (and, for prototypes also covered by `tests/test_lunar_tools_art.py`, via the pre-existing `@pytest.mark.xfail` markers there) so `LUNAR_HEADLESS=1 pytest -q` is fully green.
+All former `needs-rework` prototypes were fixed in the July 2026 sweep; every xfail entry/marker has been removed and `LUNAR_HEADLESS=1 pytest -q` is fully green (197 passed, 0 xfailed).
 
 ## Shared infrastructure: emotion classifier (Task 13, code half)
 

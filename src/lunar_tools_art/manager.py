@@ -9,7 +9,6 @@ from .loop_utils import MainLoopQueue
 from .prosody import ProsodyAnalyzer
 from .tools.headless import headless_active
 from .tools.images import DeprecatedAlias, ImageGenerator
-from .tools.tts import Text2Speech
 from .tracing import traceable
 from .voice_client import VoiceClient
 
@@ -59,7 +58,7 @@ class LunarToolsArtManager:
         # replaces the fallback with DeprecatedAlias).
         if self.voice_client is not None:
             self.text2speech = self._traceable_tool(
-                Text2Speech,
+                tools.resolve("Text2Speech"),
                 "Text2Speech",
                 methods_to_trace=["generate"],
                 voice_client=self.voice_client,
