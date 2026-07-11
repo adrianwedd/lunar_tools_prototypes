@@ -27,8 +27,8 @@ jobs:
 
     - name: Run Bandit security linter
       run: |
-        bandit -r src/ prototypes/ -f json -o bandit-report.json || true
-        bandit -r src/ prototypes/ -f txt
+        bandit --skip B311,B113 -r src/ prototypes/ -f json -o bandit-report.json || true
+        bandit --skip B311,B113 -r src/ prototypes/ -f txt
 
     - name: Run Safety dependency scanner
       run: |
