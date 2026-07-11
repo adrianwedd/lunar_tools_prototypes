@@ -407,8 +407,8 @@ class TestAIPrototype:
 
         assert prototype.llm == ai_manager.llm_backend
         assert prototype.text2speech == ai_manager.text2speech
-        assert prototype.dalle == ai_manager.dalle
-        assert prototype.sdxl == ai_manager.sdxl
+        assert prototype.dalle == ai_manager.dalle3
+        assert prototype.sdxl == ai_manager.sdxl_turbo
 
     def test_generate_text_success(self, ai_manager):
         """Test successful text generation."""
@@ -477,23 +477,23 @@ class TestAIPrototype:
         """Test image generation falls back to the legacy dalle tool."""
         prototype = ConcreteAIPrototype(ai_manager)
 
-        ai_manager.dalle.generate.return_value = "/path/to/image.jpg"
+        ai_manager.dalle3.generate.return_value = "/path/to/image.jpg"
 
         result = prototype.generate_image("Test prompt", generator="dalle")
 
         assert result == "/path/to/image.jpg"
-        ai_manager.dalle.generate.assert_called_once_with("Test prompt")
+        ai_manager.dalle3.generate.assert_called_once_with("Test prompt")
 
     def test_generate_image_sdxl_fallback(self, ai_manager):
         """Test image generation falls back to the legacy sdxl tool."""
         prototype = ConcreteAIPrototype(ai_manager)
 
-        ai_manager.sdxl.generate.return_value = "/path/to/image.jpg"
+        ai_manager.sdxl_turbo.generate.return_value = "/path/to/image.jpg"
 
         result = prototype.generate_image("Test prompt", generator="sdxl")
 
         assert result == "/path/to/image.jpg"
-        ai_manager.sdxl.generate.assert_called_once_with("Test prompt")
+        ai_manager.sdxl_turbo.generate.assert_called_once_with("Test prompt")
 
     def test_generate_image_unavailable_generator(self, ai_manager):
         """Test image generation raises when no generator is available."""
@@ -512,7 +512,7 @@ class TestAIPrototype:
         """Test image generation failure."""
         prototype = ConcreteAIPrototype(ai_manager)
 
-        ai_manager.dalle.generate.side_effect = Exception("Generation failed")
+        ai_manager.dalle3.generate.side_effect = Exception("Generation failed")
 
         result = prototype.generate_image("Test prompt", generator="dalle")
 

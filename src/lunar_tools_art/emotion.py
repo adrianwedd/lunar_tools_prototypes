@@ -9,15 +9,27 @@ from __future__ import annotations
 import logging
 import os
 from dataclasses import dataclass
-
-import cv2
-import numpy as np
+from typing import TYPE_CHECKING
 
 from .config import config
 
+if TYPE_CHECKING:
+    import numpy as np
+
 log = logging.getLogger(__name__)
 
-EMOTIONS = ["anger", "contempt", "fear", "joy", "neutral", "sadness", "surprise"]
+# Canonical emotion vocabulary shared by all producers (placeholder, FER+
+# ONNX) and consumers (audio_mirror color map, LLM viewer-data prompts).
+EMOTIONS = [
+    "anger",
+    "contempt",
+    "disgust",
+    "fear",
+    "joy",
+    "neutral",
+    "sadness",
+    "surprise",
+]
 
 # FER+ model output order (onnx/models emotion-ferplus-8.onnx).
 FERPLUS_LABELS = [
@@ -30,6 +42,9 @@ FERPLUS_LABELS = [
     "fear",
     "contempt",
 ]
+
+# FER+ label names that differ from the canonical vocabulary.
+_FERPLUS_TO_CANONICAL = {"happiness": "joy"}
 
 
 @dataclass
@@ -46,6 +61,8 @@ class EmotionDetector:
         self._placeholder_warned = False
         self._net = None
         try:
+            import cv2
+
             cascade_path = cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
             self._face_cascade = cv2.CascadeClassifier(cascade_path)
             if self._face_cascade.empty():
@@ -66,6 +83,8 @@ class EmotionDetector:
             log.warning(f"Emotion model path does not exist: {model_path}")
             return
         try:
+            import cv2
+
             self._net = cv2.dnn.readNetFromONNX(model_path)
             self._has_classifier = True
             log.info(f"Loaded FER+ ONNX emotion classifier from {model_path}")
@@ -84,6 +103,8 @@ class EmotionDetector:
             return []
 
         try:
+            import cv2
+
             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY) if frame.ndim == 3 else frame
             faces = self._face_cascade.detectMultiScale(gray, 1.1, 4, minSize=(60, 60))
 
@@ -127,7 +148,15 @@ class EmotionDetector:
         return {e: (0.8 if e == "neutral" else 0.03) for e in EMOTIONS}
 
     def _classify_emotion_onnx(self, face_roi: np.ndarray) -> dict[str, float]:
-        """Run the ONNX FER+ model on a 64x64 grayscale face ROI."""
+        """Run the ONNX FER+ model on a 64x64 grayscale face ROI.
+
+        Labels are mapped to the canonical EMOTIONS vocabulary (FER+
+        "happiness" -> "joy") so downstream consumers see one vocabulary
+        regardless of which classifier produced the result.
+        """
+        import cv2
+        import numpy as np
+
         resized = cv2.resize(face_roi, (64, 64))
         blob = cv2.dnn.blobFromImage(resized, scalefactor=1.0, size=(64, 64))
         self._net.setInput(blob)
@@ -136,6 +165,6 @@ class EmotionDetector:
         exp = np.exp(logits - np.max(logits))
         probs = exp / exp.sum()
         return {
-            label: float(prob)
+            _FERPLUS_TO_CANONICAL.get(label, label): float(prob)
             for label, prob in zip(FERPLUS_LABELS, probs, strict=False)
         }

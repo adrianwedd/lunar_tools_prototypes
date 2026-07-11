@@ -48,6 +48,7 @@ class WebCam:
             logger.warning(
                 f"Camera {self.cam_id} read failed mid-stream; WebCam degraded."
             )
+            self.release()  # free the OS camera handle; we'll never read again
             return None
 
         return frame_bgr[..., ::-1]

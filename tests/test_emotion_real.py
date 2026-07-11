@@ -45,7 +45,8 @@ def test_detect_reports_real_emotion_and_confidence(tmp_fake_onnx):
         results = detector.detect(frame)
 
     assert len(results) == 1
-    assert results[0].primary_emotion == "happiness"
+    # FER+ "happiness" is mapped to the canonical vocabulary's "joy"
+    assert results[0].primary_emotion == "joy"
     assert results[0].confidence > 0.5
 
 

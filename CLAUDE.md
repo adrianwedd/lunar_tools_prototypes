@@ -52,8 +52,8 @@ LUNAR_HEADLESS=1 pytest -v
 
 `LUNAR_HEADLESS=1` is required for the test suite (and for CI) — without it, tools resolve to
 their real hardware/cloud-backed implementations (mic, webcam, MLX models, cloud LLM/TTS/image
-APIs) instead of the fakes in `src/lunar_tools_art/tools/headless.py`. Current baseline: 176
-passed, 14 xfailed, 0 failed, 8 warnings.
+APIs) instead of the fakes in `src/lunar_tools_art/tools/headless.py`. Current baseline: 183
+passed, 14 xfailed, 0 failed, 6 warnings.
 
 ## Architecture
 
@@ -98,7 +98,7 @@ All art installations are in `prototypes/` and follow a consistent pattern:
 **Shared Infrastructure (new — March 2026)**
 
 - **LLM Backends (`src/lunar_tools_art/llm_backends.py`)**: Pluggable LLM abstraction supporting Claude API, Ollama (local), Ollama Cloud, and OpenRouter. All backends implement `.generate(prompt, system_prompt)`. Selected via `settings.toml [llm]` section.
-- **Emotion Detection (`src/lunar_tools_art/emotion.py`)**: Face detection via OpenCV Haar cascade, with a FER+ ONNX emotion classifier fetched via `scripts/fetch_models.py` (on-machine verification against real hardware still pending). Fallback chain: FER+ ONNX -> OpenCV DNN ONNX -> Haar cascade placeholder. `has_classifier` property indicates when a real model is loaded.
+- **Emotion Detection (`src/lunar_tools_art/emotion.py`)**: Face detection via OpenCV Haar cascade, with a FER+ ONNX emotion classifier fetched via `scripts/fetch_models.py` (on-machine verification against real hardware still pending). Fallback chain: FER+ ONNX (via OpenCV DNN) -> Haar cascade placeholder (confidence=0.0). `has_classifier` property indicates when a real model is loaded.
 - **Prosody Analysis (`src/lunar_tools_art/prosody.py`)**: Voice prosody extraction via librosa — pitch, energy, pace, pauses, spectral features. Pure signal processing, no ML. Infers coarse emotion tag from prosody heuristics.
 - **Voice Client (`src/lunar_tools_art/voice_client.py`)**: HTTP client for the Afterwords TTS server. Supports synthesis, voice cloning, session palette management, and cleanup.
 - **Audio Mirror FSM (`src/lunar_tools_art/audio_mirror_fsm.py`)**: Pure-logic state machine for the Audio Mirror installation: IDLE -> DETECTION -> FIRST_CAPTURE -> DEEPENING -> ORACLE -> DEPARTURE.
@@ -109,7 +109,7 @@ All art installations are in `prototypes/` and follow a consistent pattern:
 - `resolve(name)` in `tools/__init__.py` is the single entry point consumers use to obtain a tool instance: when `LUNAR_HEADLESS=1` (checked via `headless.headless_active()`) and `name` is in the `_FAKES` table, the fake is returned instead of constructing the real backend. This is what keeps `mlx`/`hw`-extras imports out of the default/Linux/CI import path — they only happen if `resolve()` actually reaches the real-backend branch.
 - **STT**: `Transcription` (in `stt.py`) is a `str` subclass — callers can treat it as plain text while it also carries recognition metadata (confidence, duration, etc.) as attributes.
 - **Images**: a single unified `ImageGenerator` in `images.py` replaces the old per-provider classes; it defaults to `mflux` (MLX-native Flux) on real hardware and to a fake backend under `LUNAR_HEADLESS`. The old provider-specific names (`Dalle3ImageGenerator`, `SDXL_TURBO`, etc.) remain as `DeprecatedAlias` wrappers that adapt kwargs and emit a `DeprecationWarning` pointing callers at `manager.image_gen`.
-- **Privacy gate**: `privacy.mode` in `settings.toml` defaults to `"local-only"`, which forces Ollama for LLM and blocks construction of any cloud-backed LLM/TTS/image backend; `"cloud-ok"` allows other providers (`"cloud-llm"` is a deprecated alias for `"cloud-ok"`). The gate is enforced at construction time in the relevant `tools/` modules, not just at call time.
+- **Privacy gate**: `privacy.mode` in `settings.toml` defaults to `"local-only"`, which blocks construction of any cloud-backed LLM/TTS/image backend (a cloud LLM provider is rejected and `llm_backend` is disabled, not silently swapped to Ollama) and rejects non-local URLs for nominally-local backends (Ollama base_url, Afterwords server_url); `"cloud-ok"` allows other providers (`"cloud-llm"` is a deprecated alias for `"cloud-ok"`). The gate is enforced at construction time in the relevant `tools/` modules, not just at call time.
 - **`MainLoopQueue`**: cross-thread queue used to hand work (e.g. async STT/LLM results) back into a prototype's synchronous main loop.
 - **Prototype status matrix**: `PROTOTYPE_STATUS.md` tracks per-prototype smoke status against the headless tools layer — as of this sweep, 19 `works`, 2 `degraded`, 8 `needs-rework` (of 29 total).
 
@@ -125,7 +125,7 @@ All art installations are in `prototypes/` and follow a consistent pattern:
 
 The system uses `settings.toml` for configuration:
 
-- `llm.provider`: Choose between "ollama", "claude", "ollama-cloud", or "openrouter"
+- `llm.provider`: Choose between "ollama", "mlx", "claude", "ollama-cloud", or "openrouter"
 - `llm.ollama.model`: Specify Ollama model (default: "llama3.1:8b")
 - `llm.claude.model`: Specify Claude model (default: "claude-sonnet-4-20250514")
 - `afterwords.server_url`: Afterwords TTS server URL (default: "http://localhost:7860")
@@ -200,7 +200,7 @@ Silicon, with lazy hardware/cloud imports so the same codebase runs headless in 
 - **`src/lunar_tools_art/tools/`**: per-domain hardware/cloud tool modules plus headless fakes — see "Tools Package" above.
 - **Design Spec**: `docs/superpowers/specs/2026-03-25-audio-mirror-and-mlx-migration-design.md`
 - **Implementation Plans**: `docs/superpowers/plans/2026-03-25-*.md`
-- **Test suite**: `LUNAR_HEADLESS=1 pytest -q` → 176 passed, 14 xfailed, 0 failed, 8 warnings.
+- **Test suite**: `LUNAR_HEADLESS=1 pytest -q` → 183 passed, 14 xfailed, 0 failed, 6 warnings.
 - **Prototype status**: `PROTOTYPE_STATUS.md` — 19 `works`, 2 `degraded`, 8 `needs-rework` of 29.
 
 ## Security History

@@ -31,11 +31,12 @@ vision = [
 ]
 audio = [
     "soundfile",
+    "faster-whisper>=1.0",
 ]
 gpu = [
     # Add GPU-specific dependencies here, e.g., "torch[cuda]"
 ]
-cloud = ["openai>=1.40", "anthropic>=0.40.0"]
+cloud = ["openai>=1.40", "anthropic>=0.40.0", "replicate>=0.30"]
 tracing = ["langsmith>=0.1"]
 mlx = ["mlx>=0.26", "mlx-whisper>=0.4", "mlx-lm>=0.24", "mflux>=0.6"]
 hw = ["sounddevice>=0.5", "pyglet>=2.0", "mido>=1.3", "python-rtmidi>=1.5", "pyzmq>=26", "pynput>=1.7"]
@@ -100,7 +101,7 @@ ensure_newline_before_comments = true
 line_length = 88
 
 [tool.mypy]
-python_version = "3.9"
+python_version = "3.10"
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true

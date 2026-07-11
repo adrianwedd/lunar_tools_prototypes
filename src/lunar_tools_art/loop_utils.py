@@ -62,4 +62,11 @@ class MainLoopQueue:
                 fn, args = self._q.get_nowait()
             except queue.Empty:
                 return
-            fn(*args)
+            try:
+                fn(*args)
+            except Exception:
+                # One failing callback must not kill the main loop or drop
+                # the remaining queued items.
+                logging.getLogger(__name__).exception(
+                    "MainLoopQueue callback raised; continuing drain"
+                )

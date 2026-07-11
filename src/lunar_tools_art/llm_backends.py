@@ -35,6 +35,7 @@ class OllamaLocalBackend(LLMBackend):
     def __init__(
         self, model: str = "llama3.1:8b", base_url: str = "http://localhost:11434"
     ):
+        privacy.require_local_url(base_url, "OllamaLocalBackend")
         self.model = model
         self.base_url = base_url.rstrip("/")
 

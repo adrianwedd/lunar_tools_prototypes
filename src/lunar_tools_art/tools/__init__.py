@@ -34,6 +34,7 @@ _FAKES = {
     "KeyboardInput": _hl.FakeKeyboardInput,
     "MidiInput": _hl.FakeMidiInput,
     "Speech2Text": _hl.FakeSpeech2Text,
+    "ZMQPairEndpoint": _hl.FakeZMQPairEndpoint,
 }
 
 

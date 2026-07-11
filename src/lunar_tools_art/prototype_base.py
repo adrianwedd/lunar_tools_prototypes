@@ -313,9 +313,10 @@ class AIPrototype(PrototypeBase):
         self.llm = self.manager.llm_backend
         self.text2speech = self.manager.text2speech
 
-        # Image generators (may be None if not configured)
-        self.dalle = getattr(self.manager, "dalle", None)
-        self.sdxl = getattr(self.manager, "sdxl", None)
+        # Legacy image-generator aliases (manager exposes dalle3/sdxl_turbo;
+        # both wrap manager.image_gen). May be None if not configured.
+        self.dalle = getattr(self.manager, "dalle3", None)
+        self.sdxl = getattr(self.manager, "sdxl_turbo", None)
 
         self.logger.info("AI prototype initialized")
 

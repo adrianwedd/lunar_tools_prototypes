@@ -43,14 +43,35 @@ class FakeWebCam:
 
 
 class FakeAudioRecorder:
-    def __init__(self, *args, **kwargs):
-        pass
+    """Mirrors the real AudioRecorder contract: start_recording() accepts an
+    optional output path, stop_recording() writes a (tiny, silent) valid WAV
+    and returns its path."""
 
-    def start_recording(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs):
+        self._active_path = None
+
+    def start_recording(self, file_path=None, *args, **kwargs):
+        import tempfile
+
+        if file_path is None:
+            fd, file_path = tempfile.mkstemp(suffix=".wav", prefix="fake-rec-")
+            os.close(fd)
+        self._active_path = file_path
         return None
 
     def stop_recording(self, *args, **kwargs):
-        return None
+        if self._active_path is None:
+            return None
+        import wave
+
+        path = self._active_path
+        self._active_path = None
+        with wave.open(path, "wb") as w:
+            w.setnchannels(1)
+            w.setsampwidth(2)
+            w.setframerate(16000)
+            w.writeframes(b"\x00\x00" * 1600)  # 0.1s of silence
+        return path
 
 
 class FakeSoundPlayer:
@@ -94,3 +115,34 @@ class FakeSpeech2Text:
         from .stt import Transcription
 
         return Transcription("hello world", confidence=1.0, language="en")
+
+
+class FakeZMQPairEndpoint:
+    """No-op stand-in for ZMQPairEndpoint: no socket is ever opened, so
+    headless Manager() construction can't bind ports or require pyzmq."""
+
+    def __init__(self, bind=True, address="tcp://127.0.0.1:5871"):
+        from urllib.parse import urlparse
+
+        self.address = address
+        parsed = urlparse(address)
+        self.ip = parsed.hostname
+        self.port = parsed.port
+
+    def send(self, message):
+        return None
+
+    def send_img(self, img):
+        return None
+
+    def receive(self, timeout_ms=0):
+        return None
+
+    def receive_img(self, timeout_ms=0):
+        return None
+
+    def get_messages(self):
+        return []
+
+    def close(self):
+        return None

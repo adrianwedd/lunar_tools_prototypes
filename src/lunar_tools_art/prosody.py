@@ -9,9 +9,10 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
 
-import librosa
-import numpy as np
+if TYPE_CHECKING:
+    import numpy as np
 
 log = logging.getLogger(__name__)
 
@@ -35,6 +36,11 @@ class ProsodyResult:
 
 class ProsodyAnalyzer:
     def analyze(self, audio: np.ndarray, sr: int) -> ProsodyResult:
+        # librosa/numpy imported here (not module level) so importing this
+        # module — e.g. via `import lunar_tools_art` — stays lightweight.
+        import librosa
+        import numpy as np
+
         # Guard: empty or invalid audio
         if audio.size == 0 or sr <= 0:
             return ProsodyResult(
