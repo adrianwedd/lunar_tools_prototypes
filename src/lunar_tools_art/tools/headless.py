@@ -66,6 +66,9 @@ class FakeAudioRecorder:
 
         path = self._active_path
         self._active_path = None
+        parent = os.path.dirname(path)
+        if parent:
+            os.makedirs(parent, exist_ok=True)
         with wave.open(path, "wb") as w:
             w.setnchannels(1)
             w.setsampwidth(2)
