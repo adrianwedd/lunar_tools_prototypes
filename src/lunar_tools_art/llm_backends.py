@@ -188,7 +188,18 @@ class MLXLocalBackend(LLMBackend):
             from mlx_lm import generate
 
             model, tokenizer = self._load()
-            full_prompt = f"{system_prompt}\n\n{prompt}" if system_prompt else prompt
+            if getattr(tokenizer, "chat_template", None):
+                messages = []
+                if system_prompt:
+                    messages.append({"role": "system", "content": system_prompt})
+                messages.append({"role": "user", "content": prompt})
+                full_prompt = tokenizer.apply_chat_template(
+                    messages, tokenize=False, add_generation_prompt=True
+                )
+            else:
+                full_prompt = (
+                    f"{system_prompt}\n\n{prompt}" if system_prompt else prompt
+                )
             with INFERENCE_LOCK:
                 return generate(model, tokenizer, prompt=full_prompt)
         except Exception as e:

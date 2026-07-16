@@ -76,6 +76,11 @@ class FakeAudioRecorder:
             w.writeframes(b"\x00\x00" * 1600)  # 0.1s of silence
         return path
 
+    def record(self, duration, file_path=None):
+        """Mirrors the real blocking record(duration) -> WAV path."""
+        self.start_recording(file_path)
+        return self.stop_recording()
+
 
 class FakeSoundPlayer:
     def __init__(self, *args, **kwargs):
@@ -117,9 +122,15 @@ class FakeSpeech2Text:
     def __init__(self, *args, **kwargs):
         pass
 
-    def transcribe(self, *args, **kwargs):
+    def transcribe(self, path_or_array=None, *, file_path=None, duration=None):
+        # Mirrors the real Speech2Text signature so headless tests catch
+        # call-site drift instead of silently accepting anything.
         from .stt import Transcription
 
+        if path_or_array is None and file_path is None and duration is None:
+            raise TypeError(
+                "transcribe() needs an audio path/array, file_path=, or duration="
+            )
         return Transcription("hello world", confidence=1.0, language="en")
 
 

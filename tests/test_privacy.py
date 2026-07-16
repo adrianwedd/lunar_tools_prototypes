@@ -57,6 +57,20 @@ class TestRequireLocalUrl:
                 "https://remote-ollama.example", "test", FakeConfig("local-only")
             )
 
+    def test_loopback_lookalike_hostname_blocked_under_local_only(self):
+        cfg = FakeConfig("local-only")
+        for url in (
+            "http://127.0.0.1.evil.example:80",
+            "http://127.evil.example",
+        ):
+            with pytest.raises(CloudDisabledError):
+                privacy.require_local_url(url, "test", cfg)
+
+    def test_loopback_ip_literals_allowed_under_local_only(self):
+        privacy.require_local_url(
+            "http://127.5.5.5:11434", "test", FakeConfig("local-only")
+        )
+
     def test_remote_url_allowed_under_cloud_ok(self):
         privacy.require_local_url(
             "https://remote-ollama.example", "test", FakeConfig("cloud-ok")

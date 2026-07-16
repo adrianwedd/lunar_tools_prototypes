@@ -6,7 +6,7 @@ import numpy as np
 import requests
 from PIL import Image, ImageDraw
 
-from src.lunar_tools_art import Manager
+from src.lunar_tools_art import Manager, privacy
 from src.lunar_tools_art.config import config
 from src.lunar_tools_art.tools.headless import headless_active
 
@@ -47,15 +47,24 @@ class DataDrivenCityscape:
                 "api_keys.openweathermap not configured; using synthetic weather data."
             )
             return self._synthetic_weather_data()
+        if not privacy.cloud_allowed():
+            self.logger.warning(
+                "privacy.mode is 'local-only'; using synthetic weather data "
+                "(set privacy.mode='cloud-ok' to fetch live weather)."
+            )
+            return self._synthetic_weather_data()
         try:
-            url = f"http://api.openweathermap.org/data/2.5/weather?q={self.city}&appid={self.weather_api_key}&units=metric"
-            response = requests.get(url)
+            url = f"https://api.openweathermap.org/data/2.5/weather?q={self.city}&appid={self.weather_api_key}&units=metric"
+            response = requests.get(url, timeout=15)
             response.raise_for_status()  # Raise an exception for HTTP errors
             weather_data = response.json()
             return weather_data
         except requests.exceptions.RequestException as e:
+            # Redact the API key: requests exception text includes the full
+            # URL, whose appid= query param would otherwise land in logs.
+            err = str(e).replace(self.weather_api_key, "***")
             self.logger.warning(
-                f"Error fetching weather data ({e}); using synthetic weather data."
+                f"Error fetching weather data ({err}); using synthetic weather data."
             )
             return self._synthetic_weather_data()
 

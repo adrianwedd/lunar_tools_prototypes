@@ -27,10 +27,18 @@ _LOCAL_HOSTS = {"localhost", "127.0.0.1", "::1", "[::1]"}
 
 
 def _is_local_url(url: str) -> bool:
+    import ipaddress
     from urllib.parse import urlparse
 
     host = urlparse(url).hostname or ""
-    return host in _LOCAL_HOSTS or host.startswith("127.") or host.endswith(".local")
+    if host in _LOCAL_HOSTS or host.endswith(".local"):
+        return True
+    # A plain string-prefix check ("127.") would pass hostnames like
+    # "127.0.0.1.evil.com"; only accept genuine loopback IP literals.
+    try:
+        return ipaddress.ip_address(host).is_loopback
+    except ValueError:
+        return False
 
 
 def require_local_url(url: str, feature: str, cfg=_default_config) -> None:

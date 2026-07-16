@@ -200,7 +200,7 @@ Silicon, with lazy hardware/cloud imports so the same codebase runs headless in 
 - **`src/lunar_tools_art/tools/`**: per-domain hardware/cloud tool modules plus headless fakes — see "Tools Package" above.
 - **Design Spec**: `docs/superpowers/specs/2026-03-25-audio-mirror-and-mlx-migration-design.md`
 - **Implementation Plans**: `docs/superpowers/plans/2026-03-25-*.md`
-- **Test suite**: `LUNAR_HEADLESS=1 pytest -q` → 197 passed, 0 failed, 6 warnings (no xfails).
+- **Test suite**: `LUNAR_HEADLESS=1 pytest -q` → 199 passed, 0 failed, 6 warnings (no xfails).
 - **Prototype status**: `PROTOTYPE_STATUS.md` — 28 `works`, 1 `degraded`, 0 `needs-rework` of 29.
 
 ## Security History

@@ -79,7 +79,7 @@ All 29 installations live in `prototypes/`; see `PROTOTYPE_STATUS.md` for the fu
 LUNAR_HEADLESS=1 pytest -q
 ```
 
-`LUNAR_HEADLESS=1` is required — it routes every tool through the in-repo fakes so no mic, webcam, MLX model, or cloud API is touched. Current baseline: **197 passed, 0 failed** (6 warnings, no xfails).
+`LUNAR_HEADLESS=1` is required — it routes every tool through the in-repo fakes so no mic, webcam, MLX model, or cloud API is touched. Current baseline: **199 passed, 0 failed** (6 warnings, no xfails).
 
 ## Configuration
 
