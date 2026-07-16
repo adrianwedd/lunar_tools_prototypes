@@ -30,6 +30,7 @@ soundfile
 # extra: cloud
 openai>=1.40
 anthropic>=0.40.0
+replicate>=0.30
 
 # extra: tracing
 langsmith>=0.1
@@ -37,6 +38,7 @@ langsmith>=0.1
 # extra: mlx
 mlx>=0.26
 mlx-whisper>=0.4
+faster-whisper>=1.0
 mlx-lm>=0.24
 mflux>=0.6
 

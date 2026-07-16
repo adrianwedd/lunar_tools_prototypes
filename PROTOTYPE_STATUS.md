@@ -40,7 +40,7 @@ for everything unless otherwise noted.
 | escape_room.py | works (fixed) | Fixed in this sweep: LLM intent parsing now guards `gpt4` being `None` and `generate()` returning `None`, falling back to intent `"unknown"` with a logged warning instead of crashing. | no |
 | evolving-cosmic-mural-prototype.py | works | Instantiates and runs cleanly. | no |
 | generative-poetry-mosaic.py | works | Instantiates and runs cleanly. | no |
-| interactive-storytelling-canvas-prototype.py | works (fixed) | Fixed in this sweep: removed the `from utils import record_and_transcribe_speech` import (no top-level `utils` module exists) in favor of `self.speech2text.transcribe(duration=10)`, matching the convention used elsewhere (e.g. `speech_activated_art.py`); guarded the nonexistent `manager.glif_api` with `getattr(..., None)` (image visualization via Glif is out of scope for the current tools layer); fixed a `self.lunar_tools_manager` → `self.lunar_tools_art_manager`/`self.glif_api` typo in `visualize_story()`. | no |
+| interactive-storytelling-canvas-prototype.py | works (fixed) | Fixed in this sweep: replaced the `from utils import record_and_transcribe_speech` import (the top-level `utils.py` helper predates the tools layer and bypasses `resolve()`) in favor of `self.speech2text.transcribe(duration=10)`, matching the convention used elsewhere (e.g. `speech_activated_art.py`); guarded the nonexistent `manager.glif_api` with `getattr(..., None)` (image visualization via Glif is out of scope for the current tools layer); fixed a `self.lunar_tools_manager` → `self.lunar_tools_art_manager`/`self.glif_api` typo in `visualize_story()`. | no |
 | interactive_storytelling.py | works | Instantiates and runs cleanly. | no |
 | neural-transfer-music-visualizer.py | works (fixed) | Fixed in this sweep: `SoundPlayer.stop_sound()` added to the tools layer (with a `FakeSoundPlayer` no-op), and the prototype now uses non-blocking `play_audio(...)` instead of an invalid `play_sound(..., loop=True)` call. | no |
 | real-time-glitch-art-lab.py | works | Instantiates and runs cleanly. | no |
@@ -60,7 +60,7 @@ Totals across all 29 prototypes (27 legacy + `audio_mirror.py` + `ai-mirror-of-t
 - **degraded**: 1 (`augmented_audio_tours.py` — vision-based position detection explicitly degrades to `"unknown"` until a vision-capable LLM backend exists)
 - **needs-rework**: 0
 
-All former `needs-rework` prototypes were fixed in the July 2026 sweep; every xfail entry/marker has been removed and `LUNAR_HEADLESS=1 pytest -q` is fully green (197 passed, 0 xfailed).
+All former `needs-rework` prototypes were fixed in the July 2026 sweep; every xfail entry/marker has been removed and `LUNAR_HEADLESS=1 pytest -q` is fully green (199 passed, 0 xfailed).
 
 ## Shared infrastructure: emotion classifier (Task 13, code half)
 

@@ -209,13 +209,20 @@ class ImageGenerator:
                     "seed": seed,
                 },
             )
-            image_url = output[0] if isinstance(output, list) else output
+            result = output[0] if isinstance(output, list) else output
         except Exception as e:
             raise InferenceError(f"Replicate image generation failed: {e}") from e
 
         tmp_path = create_secure_temp_file(suffix=".png")
         try:
-            self._download_to(str(image_url), tmp_path)
+            # replicate>=1.0 returns FileOutput objects (with .read()/.url)
+            # instead of plain URL strings; handle both shapes.
+            if hasattr(result, "read"):
+                with open(tmp_path, "wb") as f:
+                    f.write(result.read())
+            else:
+                image_url = getattr(result, "url", None) or str(result)
+                self._download_to(image_url, tmp_path)
         except Exception:
             self._cleanup(tmp_path)
             raise
