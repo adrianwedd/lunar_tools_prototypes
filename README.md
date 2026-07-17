@@ -30,12 +30,21 @@ pip install -e ".[dev]"
 
 Optional API keys (only needed with `privacy.mode = "cloud-ok"`): copy `.env.example` to `.env` and set `ANTHROPIC_API_KEY`, `OLLAMA_CLOUD_API_KEY`, `OPENROUTER_API_KEY`, etc. Never commit `.env`.
 
-Run a demo:
+Run a demo — three commands cover everything (see [docs/RUNNING.md](docs/RUNNING.md) for the full runbook):
 
 ```bash
-python lunar_tools_demo.py --demo interactive-storytelling
-python lunar_tools_demo.py --help   # list demos and options
+python lunar_tools_demo.py list                        # every demo, its requirements, status
+python lunar_tools_demo.py doctor interactive-storytelling   # is this machine ready?
+python lunar_tools_demo.py run interactive-storytelling
 ```
+
+No hardware, no API keys? Try the headless layer — the demo runs its real logic against deterministic fakes:
+
+```bash
+LUNAR_HEADLESS=1 python lunar_tools_demo.py run whispers --force
+```
+
+The legacy `--demo <name>` form still works as an alias for `run <name>`.
 
 ## Prototype Highlights
 
@@ -79,7 +88,7 @@ All 29 installations live in `prototypes/`; see `PROTOTYPE_STATUS.md` for the fu
 LUNAR_HEADLESS=1 pytest -q
 ```
 
-`LUNAR_HEADLESS=1` is required — it routes every tool through the in-repo fakes so no mic, webcam, MLX model, or cloud API is touched. Current baseline: **199 passed, 0 failed** (6 warnings, no xfails).
+`LUNAR_HEADLESS=1` is required — it routes every tool through the in-repo fakes so no mic, webcam, MLX model, or cloud API is touched. Current baseline: **244 passed, 0 failed** (6 warnings, no xfails).
 
 ## Configuration
 

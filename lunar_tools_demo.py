@@ -11,12 +11,18 @@ import sys
 
 sys.path.append(os.path.join(os.path.dirname(__file__), "prototypes"))
 
-from lunar_tools_art import doctor as doctor_mod
-from lunar_tools_art import hardware_probes, service_probes  # noqa: F401
-from lunar_tools_art.cli_config import ConfigParseError, parse_config_args
-from lunar_tools_art.cli_style import make_style
-from lunar_tools_art.demo_registry import DEMOS
-from lunar_tools_art.service_probes import make_assets_probe
+# The config module logs at import time; keep the CLI's opening line clean.
+logging.getLogger("lunar_tools_art.config").setLevel(logging.WARNING)
+
+from lunar_tools_art import doctor as doctor_mod  # noqa: E402
+from lunar_tools_art import hardware_probes, service_probes  # noqa: F401,E402
+from lunar_tools_art.cli_config import (  # noqa: E402
+    ConfigParseError,
+    parse_config_args,
+)
+from lunar_tools_art.cli_style import make_style  # noqa: E402
+from lunar_tools_art.demo_registry import DEMOS  # noqa: E402
+from lunar_tools_art.service_probes import make_assets_probe  # noqa: E402
 
 _probes_for_test = None  # tests patch this to inject probes
 
@@ -144,11 +150,13 @@ def cmd_doctor(name, style):
 
 
 def _launch(demo, kwargs, style):
-    from lunar_tools_art.manager import Manager  # heavyweight; import late
+    from lunar_tools_art.manager import (  # heavyweight; import late
+        LunarToolsArtManager,
+    )
 
     module = importlib.import_module(demo.module)
     cls = getattr(module, demo.class_name)
-    manager = Manager()
+    manager = LunarToolsArtManager()
     if "lunar_tools_art_manager" in inspect.signature(cls.__init__).parameters:
         instance = cls(manager, **kwargs)
     else:
@@ -212,9 +220,8 @@ def main(argv=None):
         level=logging.INFO if args.command == "run" or debug else logging.WARNING,
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     )
-    logging.getLogger("lunar_tools_art.config").setLevel(
-        logging.INFO if debug else logging.WARNING
-    )
+    if debug:
+        logging.getLogger("lunar_tools_art.config").setLevel(logging.INFO)
     style = make_style()
     if args.command == "list":
         return cmd_list(style)
