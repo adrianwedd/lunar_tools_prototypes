@@ -58,6 +58,10 @@ class PrototypeBase(ABC):
 
         # Track running state for graceful shutdown
         self._running = False
+
+        # Set by run() when its catch-all absorbs an exception, so callers
+        # (e.g. the CLI) can report an honest exit code. None on clean exit.
+        self.last_fatal_error: Exception | None = None
         self._resources_acquired = []
 
         self.logger.info(f"{self.__class__.__name__} initialized with config: {kwargs}")
@@ -123,6 +127,7 @@ class PrototypeBase(ABC):
         4. Ensures cleanup() is called on exit
         """
         self._running = True
+        self.last_fatal_error = None
 
         try:
             self.logger.info(
@@ -147,6 +152,7 @@ class PrototypeBase(ABC):
         except KeyboardInterrupt:
             self.logger.info("Interrupted by user (Ctrl+C)")
         except Exception as e:
+            self.last_fatal_error = e
             self.logger.error(
                 f"Unexpected error in {self.__class__.__name__}: {e}", exc_info=True
             )
