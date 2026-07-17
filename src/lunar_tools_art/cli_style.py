@@ -10,7 +10,7 @@ import os
 import sys
 
 _BADGES_UNICODE = {
-    "pass": "✓",
+    "pass": "✓",  # nosec B105 - check-status badge, not a password
     "fail": "✗",
     "warn": "⚠",
     "works": "●",
@@ -18,7 +18,7 @@ _BADGES_UNICODE = {
     "missing": "○",
 }
 _BADGES_ASCII = {
-    "pass": "OK",
+    "pass": "OK",  # nosec B105 - check-status badge, not a password
     "fail": "XX",
     "warn": "!!",
     "works": "*",
