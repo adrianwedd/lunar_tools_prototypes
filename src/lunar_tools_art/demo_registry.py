@@ -57,8 +57,9 @@ class Demo:
 
 
 def _req(*caps, optional=()):
+    all_caps = list(caps) + [c for c in optional if c not in caps]
     return tuple(
-        Requirement(c, "optional" if c in optional else "required") for c in caps
+        Requirement(c, "optional" if c in optional else "required") for c in all_caps
     )
 
 
