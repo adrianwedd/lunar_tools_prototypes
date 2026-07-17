@@ -1,9 +1,14 @@
 from lunar_tools_art.prototype_base import PrototypeBase
 
 
+class _FakeKeyboard:
+    def is_key_pressed(self, *_a, **_k):
+        return False
+
+
 class _FakeManager:
     renderer = None
-    keyboard_input = None
+    keyboard_input = _FakeKeyboard()
     main_queue = None
 
 

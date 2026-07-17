@@ -188,11 +188,16 @@ class ExceptionHandler:
         self.continue_on_error = continue_on_error
         self.max_consecutive_errors = max_consecutive_errors
         self.consecutive_errors = 0
+        # Last exception that reached __exit__ (the with-block is over at
+        # that point, so it ended the run even when suppressed).
+        self.last_exception: BaseException | None = None
 
     def __enter__(self):
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
+        if exc_type is not None and exc_type is not KeyboardInterrupt:
+            self.last_exception = exc_value
         if exc_type is None:
             # No exception occurred, reset error counter
             self.consecutive_errors = 0

@@ -158,6 +158,12 @@ class PrototypeBase(ABC):
             )
         finally:
             self._running = False
+            if self.last_fatal_error is None:
+                # An exception suppressed by ExceptionHandler still ended the
+                # run (the with-block wraps the whole loop) — record it.
+                self.last_fatal_error = getattr(
+                    self.exception_handler, "last_exception", None
+                )
             try:
                 self.cleanup()
                 self.logger.info(f"{self.__class__.__name__} shutdown complete")
