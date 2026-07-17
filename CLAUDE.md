@@ -26,16 +26,26 @@ cp .env.example .env  # Add your OpenAI, Replicate API keys
 ### Running Prototypes
 
 ```bash
-# Run a specific demo using the CLI entrypoint
-python lunar_tools_demo.py --demo <demo_name>
+# List every demo with requirements and headless-smoke status (also the no-args behavior)
+python lunar_tools_demo.py list
 
-# Examples:
+# Preflight checks — whole environment, or one demo's requirements
+python lunar_tools_demo.py doctor
+python lunar_tools_demo.py doctor audio-mirror
+
+# Preflight then launch (--force skips preflight; --debug shows tracebacks)
+python lunar_tools_demo.py run interactive-storytelling
+python lunar_tools_demo.py run whispers --config duration=5 --config "window_size=(800,600)"
+
+# Legacy alias, still supported:
 python lunar_tools_demo.py --demo interactive-storytelling
-python lunar_tools_demo.py --demo fractal-forest --config "{'mic_device': 'default', 'window_size': (800, 600)}"
-
-# List available demos by running without args
-python lunar_tools_demo.py --help
 ```
+
+Demo metadata (explicit entry-point class names, per-demo requirements, assets) lives in
+`src/lunar_tools_art/demo_registry.py`; preflight checks in `doctor.py` +
+`hardware_probes.py`/`service_probes.py`; CLI styling in `cli_style.py`. `--config` takes
+repeatable `KEY=VALUE` pairs (comma-joined also works; tuples like `(800,600)` parse). See
+`docs/RUNNING.md` for the full runbook.
 
 ### Testing
 
@@ -52,7 +62,7 @@ LUNAR_HEADLESS=1 pytest -v
 
 `LUNAR_HEADLESS=1` is required for the test suite (and for CI) — without it, tools resolve to
 their real hardware/cloud-backed implementations (mic, webcam, MLX models, cloud LLM/TTS/image
-APIs) instead of the fakes in `src/lunar_tools_art/tools/headless.py`. Current baseline: 197
+APIs) instead of the fakes in `src/lunar_tools_art/tools/headless.py`. Current baseline: 244
 passed, 0 failed, 6 warnings (no xfails remain).
 
 ## Architecture
@@ -200,7 +210,7 @@ Silicon, with lazy hardware/cloud imports so the same codebase runs headless in 
 - **`src/lunar_tools_art/tools/`**: per-domain hardware/cloud tool modules plus headless fakes — see "Tools Package" above.
 - **Design Spec**: `docs/superpowers/specs/2026-03-25-audio-mirror-and-mlx-migration-design.md`
 - **Implementation Plans**: `docs/superpowers/plans/2026-03-25-*.md`
-- **Test suite**: `LUNAR_HEADLESS=1 pytest -q` → 199 passed, 0 failed, 6 warnings (no xfails).
+- **Test suite**: `LUNAR_HEADLESS=1 pytest -q` → 244 passed, 0 failed, 6 warnings (no xfails).
 - **Prototype status**: `PROTOTYPE_STATUS.md` — 28 `works`, 1 `degraded`, 0 `needs-rework` of 29.
 
 ## Security History
