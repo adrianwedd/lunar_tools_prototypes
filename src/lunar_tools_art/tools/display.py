@@ -132,4 +132,8 @@ class Renderer:
         elif self.backend == "opencv":
             import cv2
 
-            cv2.destroyWindow("Lunar Tools Art")
+            try:
+                cv2.destroyWindow("Lunar Tools Art")
+            except cv2.error:
+                pass  # window was never created (crash before first render)
+            cv2.waitKey(1)  # let HighGUI process the destroy

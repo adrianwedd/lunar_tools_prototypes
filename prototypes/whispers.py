@@ -66,13 +66,179 @@ logger = logging.getLogger(__name__)
 
 FRAME_W, FRAME_H = 1280, 720          # render size (16:9)
 DIFF_W, DIFF_H = 160, 90              # motion analysis grid (8x downscale)
-CELL_THRESHOLD = 12.0                 # grey-diff level that marks a moving cell
+CELL_THRESHOLD = 12.0                 # smoothed grey-diff that marks a moving cell
+CELL_HYST_LO = 6.0                    # cells above this sustain if moving last frame
+STILL_ENERGY_MAX = 0.15                # below this mean energy the room is still
+SUDDEN_ENERGY_MIN = 0.5                # absolute floor for a sudden gesture
+GESTURE_STICKY_FRAMES = 3              # label change must persist this long
+NOISE_FLOOR_INIT = 1.5                 # initial sensor-flicker estimate (grey levels)
+GESTURE_BURST = 260                   # particles in one sudden-gesture burst
+AMBIENT_BREATH_RATE = 0.02           # stillness ambient emission, particles/s per cap unit
+STATE_LERP_S = 1.5                   # gesture-state parameter blend time constant
+
+# --- visual presets (spec: prototypes/whispers_visual_presets.md) -----------
+
+def _col_ember(pixel: np.ndarray) -> np.ndarray:
+    """Warm the sampled pixel; lift dark pixels to a dim ember floor."""
+    col = pixel * np.array([1.15, 0.95, 0.72], dtype=np.float32) + np.array(
+        [18.0, 4.0, 0.0], dtype=np.float32
+    )
+    lum = pixel @ np.array([0.30, 0.55, 0.15], dtype=np.float32)
+    floor = np.array([70.0, 28.0, 8.0], dtype=np.float32)
+    return np.where((lum < 30.0)[..., None], np.maximum(col, floor), col)
+
+
+_TIDAL_STOPS = (
+    (0.00, (2.0, 12.0, 26.0)),
+    (0.35, (10.0, 60.0, 96.0)),
+    (0.70, (30.0, 140.0, 170.0)),
+    (1.00, (120.0, 230.0, 240.0)),
+)
+
+
+def _col_tidal(pixel: np.ndarray) -> np.ndarray:
+    """Erase the room's colour: luminance through a cool 4-stop ramp."""
+    lum = (pixel @ np.array([0.30, 0.55, 0.15], dtype=np.float32)) / 255.0
+    col = np.zeros_like(pixel)
+    for (t0, c0), (t1, c1) in zip(_TIDAL_STOPS[:-1], _TIDAL_STOPS[1:]):
+        m = (lum >= t0) & (lum <= t1)
+        if not m.any():
+            continue
+        f = ((lum - t0) / (t1 - t0))[..., None]
+        a = np.array(c0, dtype=np.float32)
+        b = np.array(c1, dtype=np.float32)
+        col = np.where(m[..., None], a + (b - a) * f, col)
+    return col
+
+
+def _col_ghost(pixel: np.ndarray) -> np.ndarray:
+    """Invert-and-bloom: presence glows, background recedes."""
+    inverted = np.clip(255.0 - pixel, 0, 255) * np.array(
+        [1.0, 0.92, 1.0], dtype=np.float32
+    )
+    return 0.7 * inverted + 0.3 * pixel
+
+
+_SIGNAL_STOPS = np.array(
+    [
+        [255.0, 140.0, 20.0],   # amber
+        [255.0, 210.0, 60.0],   # gold
+        [40.0, 220.0, 140.0],   # jade
+        [50.0, 90.0, 255.0],    # cobalt
+        [170.0, 60.0, 255.0],   # violet
+        [255.0, 60.0, 120.0],   # rose
+    ],
+    dtype=np.float32,
+)
+
+
+def _col_signal(pixel: np.ndarray) -> np.ndarray:
+    """Quantise hue to a 6-stop stained-glass ramp; dim stays dim."""
+    import cv2
+
+    hsv = cv2.cvtColor(
+        np.clip(pixel, 0, 255).astype(np.uint8)[None, ...], cv2.COLOR_RGB2HSV
+    )[0].astype(np.float32)
+    h, s, v = hsv[..., 0], hsv[..., 1] / 255.0, hsv[..., 2] / 255.0
+    idx = np.clip((h / 30.0).astype(int) % 6, 0, 5)
+    col = _SIGNAL_STOPS[idx]
+    return col * s[..., None] * (v[..., None] ** 0.8)
+
+
+PRESETS: dict[str, dict] = {
+    "ember": {
+        "label": "Ember Library",
+        "trail_alpha": 0.62,
+        "size_range": (1.0, 2.8),
+        "emission_scale": 0.75,
+        "swirl_rate": 0.035,
+        "buoyancy": 2.2,
+        "glow_sigma": 1.3,
+        "core_gain": 0.85,
+        "halo_gain": 1.15,
+        "color_map": _col_ember,
+        "bg_tint": (24.0, 14.0, 8.0),
+        "bg_tint_k": 0.10,
+        "fade_floor": 0.04,
+        "fade_exp": 2.4,
+    },
+    "tidal": {
+        "label": "Tidal Memory",
+        "trail_alpha": 0.80,
+        "size_range": (0.8, 2.0),
+        "emission_scale": 1.4,
+        "swirl_rate": 0.020,
+        "buoyancy": 0.5,
+        "glow_sigma": 2.0,
+        "core_gain": 0.45,
+        "halo_gain": 1.8,
+        "color_map": _col_tidal,
+        "bg_tint": (10.0, 20.0, 26.0),
+        "bg_tint_k": 0.14,
+        "fade_floor": 0.10,
+        "fade_exp": 1.4,
+    },
+    "ghost": {
+        "label": "Ghost Bloom",
+        "trail_alpha": 0.48,
+        "size_range": (2.0, 5.0),
+        "emission_scale": 0.55,
+        "swirl_rate": 0.090,
+        "buoyancy": -0.6,
+        "glow_sigma": 2.6,
+        "core_gain": 1.1,
+        "halo_gain": 0.7,
+        "color_map": _col_ghost,
+        "bg_tint": (36.0, 34.0, 42.0),
+        "bg_tint_k": 0.06,
+        "fade_floor": 0.02,
+        "fade_exp": 3.2,
+    },
+    "signal": {
+        "label": "Signal Chapel",
+        "trail_alpha": 0.68,
+        "size_range": (1.4, 3.2),
+        "emission_scale": 1.0,
+        "swirl_rate": 0.140,
+        "buoyancy": 1.0,
+        "glow_sigma": 0.9,
+        "core_gain": 1.35,
+        "halo_gain": 0.95,
+        "color_map": _col_signal,
+        "bg_tint": (14.0, 10.0, 20.0),
+        "bg_tint_k": 0.08,
+        "fade_floor": 0.08,
+        "fade_exp": 1.8,
+    },
+}
+DEFAULT_PRESET = "ember"
+PRESET_KEYS = {"1": "ember", "2": "tidal", "3": "ghost", "4": "signal"}
+
+# per-state multipliers (spec: applied to the preset's base values)
+STATE_MULTIPLIERS = {
+    "still": {
+        "trail_alpha": 1.15, "emission_scale": 0.60, "size": 0.85,
+        "swirl_rate": 0.70, "buoyancy": 0.50, "glow_sigma": 1.25,
+        "core_gain": 0.85, "halo_gain": 0.90, "brightness_floor": 0.10,
+        "fade_exp": 0.80,
+    },
+    "gentle": {k: 1.0 for k in (
+        "trail_alpha", "emission_scale", "size", "swirl_rate", "buoyancy",
+        "glow_sigma", "core_gain", "halo_gain", "fade_exp",
+    )} | {"brightness_floor": None},
+    "sudden": {
+        "trail_alpha": 0.75, "emission_scale": 2.60, "size": 1.40,
+        "swirl_rate": 2.20, "buoyancy": 1.80, "glow_sigma": 0.70,
+        "core_gain": 1.60, "halo_gain": 1.30, "brightness_floor": None,
+        "fade_exp": 1.30,
+    },
+}
 PARTICLE_LIFETIME_S = 25.0             # aura persistence: particles die slow
 FILL_TIME_S = 10.0                     # sustained motion fills the cap in ~this
 TRAIL_ALPHA = 0.55                     # 1.0 = no trails; lower = longer trails
 HUSH_VOLUME = 0.22                     # whispers are quiet by design
 WHISPER_MIN_GAP_S = 6.0                # at most one spoken whisper per gap
-WHISPER_ABS_MIN_ENERGY = 2.5           # never whisper into camera noise
+WHISPER_ABS_MIN_ENERGY = 0.3           # never whisper into camera noise
 WHISPER_BURST_FACTOR = 1.8             # energy must exceed this x its slow EMA
 SWIRL_RATE = 0.05                      # orbit field angular rate
 
@@ -131,6 +297,81 @@ def _hush(path: str, volume: float):
     return data * volume, sr
 
 
+class WhisperTexture:
+    """Procedural whisper-texture synthesiser (numpy, no network, no TTS).
+
+    The sonic dimension of the installation, independent of Afterwords:
+    a breathy band-limited noise bed whose **intensity** follows motion
+    energy, whose **texture** (formant-ish resonances) shifts with the
+    gesture state, and whose **spatial position** follows the horizontal
+    centroid of motion. Clips are generated on demand (cheap numpy) and
+    played non-blocking; the piece works identically with audio disabled
+    (SoundPlayer degraded / absent is fine).
+
+    A clip is ~2 s of: pink-ish noise -> 3 parallel resonant bandpasses
+    (250/650/1200 Hz, breath formants) -> slow amplitude envelope. Sudden
+    gestures add a sharp attack transient layer and a higher formant.
+    """
+
+    SR = 22050
+    FORMANTS = (250.0, 650.0, 1200.0)
+
+    def __init__(self, seed=None):
+        self._rng = np.random.default_rng(seed)
+
+    def clip(self, energy: float, gesture: str, pan: float) -> tuple:
+        """Render one stereo clip. Returns (float32 [n,2] samples, sr).
+
+        energy 0..~30 maps to peak 0.05..0.22; gesture selects the
+        formant flavour; pan (-1..1) crossfades L/R.
+        """
+        dur = 2.2
+        n = int(dur * self.SR)
+        t = np.arange(n, dtype=np.float32) / self.SR
+
+        # pink-ish noise: white filtered with a 1/sqrt(f) tilt approximation
+        white = self._rng.standard_normal(n).astype(np.float32)
+        spec = np.fft.rfft(white)
+        freqs = np.fft.rfftfreq(n, 1.0 / self.SR)
+        spec *= 1.0 / np.sqrt(np.maximum(freqs, 20.0) / 20.0)
+        noise = np.fft.irfft(spec, n).astype(np.float32)
+
+        sig = np.zeros(n, dtype=np.float32)
+        if gesture == "sudden":
+            forms = self.FORMANTS + (1800.0,)
+            gains = (0.6, 0.4, 0.5, 0.7)
+        elif gesture == "gentle":
+            forms = self.FORMANTS
+            gains = (0.5, 0.8, 0.4)
+        else:  # still
+            forms = self.FORMANTS[:2]
+            gains = (0.9, 0.4)
+        for f, g in zip(forms, gains):
+            sig += g * self._resonance(noise, f)
+
+        # slow envelope: breathe in, breathe out
+        env = np.sin(np.pi * np.clip(t / dur, 0, 1)) ** 1.5
+        sig *= env
+
+        peak_target = float(np.clip(0.05 + 0.006 * energy, 0.05, 0.22))
+        peak = float(np.abs(sig).max()) or 1.0
+        sig *= peak_target / peak
+
+        # pan into stereo
+        theta = (pan + 1.0) * 0.25 * np.pi  # 0..pi/2
+        stereo = np.stack([sig * np.cos(theta), sig * np.sin(theta)], axis=1)
+        return stereo.astype(np.float32), self.SR
+
+    def _resonance(self, noise: np.ndarray, freq: float, q: float = 8.0) -> np.ndarray:
+        """FFT bandpass with a resonant peak (cheap formant)."""
+        n = noise.shape[0]
+        spec = np.fft.rfft(noise)
+        freqs = np.fft.rfftfreq(n, 1.0 / self.SR)
+        resp = np.exp(-0.5 * ((np.log(freqs + 1e-6) - np.log(freq)) * q) ** 2)
+        resp[0] = 0.0
+        return np.fft.irfft(spec * resp, n).astype(np.float32)
+
+
 class Whispers:
     """Movement-responsive particle installation (see module docstring)."""
 
@@ -169,17 +410,38 @@ class Whispers:
         self._rng = random.Random(seed)
         self._np_rng = np.random.default_rng(seed)
 
+        # Visual preset + gesture-state parameter blending. Init in the
+        # neutral "gentle" state (all multipliers 1.0) so a fresh instance
+        # expresses the pure preset; the loop blends toward real states.
+        self.preset_name = None
+        self._gesture = "gentle"
+        # optional MIDI user-adjustments (multiplicative, 1.0 = neutral)
+        self.midi_adjust = {"size": 1.0, "swirl": 1.0, "emission": 1.0, "trail": 1.0}
+        self._state_mix = {k: 1.0 for k in STATE_MULTIPLIERS["gentle"]}
+        self._state_mix.pop("brightness_floor", None)
+        self._state_mix["brightness_floor"] = None
+        self.apply_preset(DEFAULT_PRESET, lerp=False)  # builds self.eff
+
         # Input-source state (decided in run(); nothing touches hardware in
         # __init__ so headless construction stays side-effect free).
         self.source_kind = "none"            # camera | video | synthetic
         self.source_detail = ""
         self._capture = None                 # cv2.VideoCapture (video path)
         self._last_source_frame = None
+        self._clip_fps = 30.0                # recorded clip's frame rate
+        self._video_frames_read = 0          # pacing counter (wall-time)
 
         # Motion analysis state.
         self._prev_gray = None
+        self._cells_prev = np.zeros((DIFF_H, DIFF_W), dtype=bool)
+        self._noise_floor = NOISE_FLOOR_INIT
         self.motion_energy = 0.0
         self._energy_ema = 0.0
+        self._gesture_now = "still"
+        self._gesture_frames = 0
+        self._last_burst_t = -math.inf
+        self.bursts_fired = 0
+        self._breath_accum = 0.0
 
         # Particle store: slots [0, n) are alive; death compacts via
         # swap-with-survivors, spawn appends. All updates vectorised.
@@ -204,6 +466,12 @@ class Whispers:
         self._whisper_busy = False
         self._whisper_lock = threading.Lock()
 
+        # Procedural whisper texture (Afterwords-independent sonic layer).
+        self.texture = WhisperTexture(seed=seed)
+        self.texture_clips_played = 0
+        self._last_texture_end_t = 0.0
+        self.sound_enabled = True
+
         # Controls / evidence.
         self._show_motion = False
         self._show_hud = False
@@ -215,6 +483,74 @@ class Whispers:
         self.frame_count = 0
         self.frames_at_capacity = 0
         self._writer = None
+
+    # -- presets & state-blended parameters ---------------------------------
+
+    def apply_preset(self, name: str, lerp: bool = True) -> None:
+        """Switch the visual preset. With `lerp`, numeric parameters glide
+        from the current values to the new preset's over ~1.5 s so a
+        mid-session switch never pops."""
+        if name not in PRESETS:
+            raise KeyError(f"unknown preset {name!r} (have: {sorted(PRESETS)})")
+        p = PRESETS[name]
+        self.preset_name = name
+        self.preset_label = p["label"]
+        if not lerp:
+            self._params = dict(p)
+            self.trail_alpha = float(p["trail_alpha"])
+            # rebuild the effective dict immediately so direct-API users
+            # (tests, embedders) see the new preset without a run loop
+            self._update_state_blend(getattr(self, "_gesture", "gentle"), 1e9)
+        else:
+            self._params = dict(p)  # target; _update_state_blend lerps toward it
+
+    def current_preset_params(self) -> dict:
+        """The currently effective (state-blended) parameters."""
+        return dict(self._params)
+
+    def _update_state_blend(self, gesture: str, dt: float) -> None:
+        """Blend state multipliers toward the current gesture's row with a
+        ~1.5 s time constant, then derive effective draw parameters."""
+        target = STATE_MULTIPLIERS.get(gesture, STATE_MULTIPLIERS["gentle"])
+        alpha = 1.0 - math.exp(-dt / STATE_LERP_S)
+        for k, v in target.items():
+            if v is None:  # brightness_floor: state may override or defer
+                self._state_mix[k] = None
+                continue
+            cur = self._state_mix.get(k)
+            if cur is None:
+                cur = 1.0
+            self._state_mix[k] = cur + (v - cur) * alpha
+
+        p = self._params
+        m = self._state_mix
+        eff = {
+            "trail_alpha": min(0.97, p["trail_alpha"] * m["trail_alpha"]
+                               * self.midi_adjust["trail"]),
+            "size_range": (
+                p["size_range"][0] * m["size"] * self.midi_adjust["size"],
+                p["size_range"][1] * m["size"] * self.midi_adjust["size"],
+            ),
+            "emission_scale": p["emission_scale"] * m["emission_scale"]
+            * self.midi_adjust["emission"],
+            "swirl_rate": p["swirl_rate"] * m["swirl_rate"]
+            * self.midi_adjust["swirl"],
+            "buoyancy": p["buoyancy"] * m["buoyancy"],
+            "glow_sigma": p["glow_sigma"] * m["glow_sigma"],
+            "core_gain": p["core_gain"] * m["core_gain"],
+            "halo_gain": p["halo_gain"] * m["halo_gain"],
+            "fade_exp": p["fade_exp"] * m["fade_exp"],
+            "brightness_floor": (
+                m["brightness_floor"]
+                if m.get("brightness_floor") is not None
+                else p["fade_floor"]
+            ),
+            "color_map": p["color_map"],
+            "bg_tint": p["bg_tint"],
+            "bg_tint_k": p["bg_tint_k"],
+        }
+        self.eff = eff
+        self.trail_alpha = eff["trail_alpha"]
 
     # -- input sources --------------------------------------------------------
 
@@ -256,6 +592,8 @@ class Whispers:
                     ok, frame_bgr = cap.read()
                     if ok and frame_bgr is not None:
                         self._capture = cap
+                        self._clip_fps = cap.get(cv2.CAP_PROP_FPS) or 30.0
+                        self._video_frames_read = 1
                         self.source_kind = "video"
                         self.source_detail = f"{path.name} (looped)"
                         self._last_source_frame = self._to_frame(frame_bgr[..., ::-1])
@@ -310,10 +648,26 @@ class Whispers:
         elif self.source_kind == "video" and self._capture is not None:
             import cv2
 
+            # wall-time pacing: a recorded visitor should unfold in real
+            # time regardless of the render loop's fps. When the loop
+            # runs slower than the clip, skip ahead to where wall time says
+            # the clip should be (bounded catch-up).
+            clip_fps = self._clip_fps or 30.0
+            expected = int((time.time() - self._start_t) * clip_fps) + 1
+            while self._video_frames_read < expected - 1:
+                ok, _ = self._capture.read()   # discard lagging frames
+                if not ok:
+                    break
+                self._video_frames_read += 1
             ok, frame_bgr = self._capture.read()
+            if ok and frame_bgr is not None:
+                self._video_frames_read += 1
             if not ok or frame_bgr is None:
                 self._capture.set(cv2.CAP_PROP_POS_FRAMES, 0)  # loop the clip
+                self._video_frames_read = 0
                 ok, frame_bgr = self._capture.read()
+                if ok and frame_bgr is not None:
+                    self._video_frames_read = 1
             if ok and frame_bgr is not None:
                 return self._to_frame(frame_bgr[..., ::-1])
             self.source_kind = "synthetic"
@@ -329,21 +683,53 @@ class Whispers:
         return cv2.cvtColor(small, cv2.COLOR_RGB2GRAY).astype(np.float32)
 
     def _motion_field(self, gray: np.ndarray):
-        """Diff against the previous grid.
+        """Diff against the previous grid, with noise suppression,
+        smoothing and hysteresis.
 
-        Returns (energy, cells, flow_x, flow_y):
-          energy — scalar mean abs diff (0..255)
-          cells  — boolean DIFF_H x DIFF_W moving-cell mask
-          flow   — per-cell motion direction from an 8x8-block centroid shift
-                   between the previous and current grids (cheap vector flow).
+        Pipeline (all numpy, on the 160x90 grid):
+          1. diff the grey grids;
+          2. subtract a running noise-floor estimate (EMA of the diff's own
+             low percentile) — sensor flicker stops counting as motion;
+          3. smooth the diff (3x3 box blur) so single-cell noise speckles
+             dissolve and coherent movement survives;
+          4. hysteresis: a cell is *moving* if its smoothed diff exceeds
+             CELL_THRESHOLD, or exceeds CELL_HYST_LO and was moving last
+             frame (motion sustains through dips); a cell stops moving
+             only when it falls below the low threshold;
+          5. flow: per-block centroid shift between the previous and
+             current weighted grids (cheap vector flow).
+
+        Returns (energy, cells, flow_x, flow_y, gesture):
+          energy  — scalar mean motion energy (post-suppression)
+          cells   — boolean moving-cell mask (hysteresis applied)
+          gesture — 'still' | 'gentle' | 'sudden' classification from the
+                    energy burst ratio vs its slow EMA (see _classify_gesture)
         """
         prev = self._prev_gray
         if prev is None:
             diff = np.zeros_like(gray)
         else:
             diff = np.abs(gray - prev)
+
+        # running noise floor: the low percentile of the diff itself is a
+        # robust estimate of sensor flicker; subtract it, clamped at 0
+        floor = float(np.percentile(diff, 90)) if diff.size else 0.0
+        self._noise_floor = 0.95 * self._noise_floor + 0.05 * floor
+        diff = np.clip(diff - (self._noise_floor + 1.0), 0.0, None)
+
+        # smoothing: 3x3 box blur (two cumsum passes, vectorised)
+        if prev is not None:
+            d = np.pad(diff, 1, mode="edge")
+            cs = np.cumsum(np.cumsum(d, axis=0), axis=1)
+            cs = np.pad(cs, ((1, 0), (1, 0)))
+            sm = (cs[3:, 3:] - cs[:-3, 3:] - cs[3:, :-3] + cs[:-3, :-3]) / 9.0
+            diff = sm.astype(np.float32)
+
         energy = float(diff.mean())
-        cells = diff > CELL_THRESHOLD
+        raw_hi = diff > CELL_THRESHOLD
+        raw_lo = diff > CELL_HYST_LO
+        cells = raw_hi | (raw_lo & self._cells_prev)
+        self._cells_prev = cells.copy()
 
         flow_x = np.zeros((DIFF_H, DIFF_W), dtype=np.float32)
         flow_y = np.zeros((DIFF_H, DIFF_W), dtype=np.float32)
@@ -353,7 +739,7 @@ class Whispers:
             # row/column may be a partial block, so grids must match it)
             for y0 in range(0, DIFF_H, bh):
                 for x0 in range(0, DIFF_W, bw):
-                    cur = diff[y0:y0 + bh, x0:x0 + bw]
+                    cur = (diff * cells)[y0:y0 + bh, x0:x0 + bw]
                     cw = cur.sum()
                     if cw <= 1e-3:
                         continue
@@ -361,7 +747,7 @@ class Whispers:
                     cy = (by * cur).sum() / cw
                     cx = (bx * cur).sum() / cw
                     pblock = prev[y0:y0 + cur.shape[0], x0:x0 + cur.shape[1]]
-                    pw = np.abs(pblock)
+                    pw = np.abs(pblock - gray[y0:y0 + cur.shape[0], x0:x0 + cur.shape[1]])
                     pws = pw.sum()
                     if pws <= 1e-3:
                         continue
@@ -373,7 +759,36 @@ class Whispers:
                     flow_y[y0:y0 + cur.shape[0], x0:x0 + cur.shape[1]] = np.clip(
                         cy - py_c, -4.0, 4.0
                     )
-        return energy, cells, flow_x, flow_y
+
+        gesture = self._classify_gesture(energy)
+        return energy, cells, flow_x, flow_y, gesture
+
+    def _classify_gesture(self, energy: float) -> str:
+        """Classify the room: still / gentle / sudden.
+
+        A *sudden* gesture is an energy burst: energy well above its slow
+        EMA *and* above an absolute floor. Hysteresis keeps the label
+        sticky: once sudden, it holds for a few frames (the aura should
+        not flicker between states), and a recent sudden episode keeps
+        gentle from re-firing.
+        """
+        ema = self._energy_ema
+        if energy < STILL_ENERGY_MAX and energy < 1.8 * max(ema, 0.5):
+            label = "still"
+        elif energy >= SUDDEN_ENERGY_MIN and energy >= 2.2 * max(ema, 0.4):
+            label = "sudden"
+        else:
+            label = "gentle"
+        # sticky: keep the previous label for a few frames
+        if label != self._gesture:
+            if self._gesture_frames > 0:
+                self._gesture_frames -= 1
+                label = self._gesture
+            else:
+                self._gesture = label
+                self._gesture_frames = GESTURE_STICKY_FRAMES
+        self._gesture_now = label
+        return label
 
     # -- particles ----------------------------------------------------------------
 
@@ -381,23 +796,88 @@ class Whispers:
     def n_alive(self) -> int:
         return int(self._n)
 
-    def _spawn(self, frame, cells, flow_x, flow_y, energy, dt):
-        """Emit particles from moving cells; count scales with motion.
+    def _spawn(self, frame, cells, flow_x, flow_y, energy, gesture, dt):
+        """Emit particles from moving cells; the profile depends on the
+        room's gesture state:
 
-        Budget keeps sustained motion filling the aura cap in ~FILL_TIME_S
-        (so the piece accumulates rather than flashing), scaled 0.3x..1.6x
-        by motion energy, and capped by free slots and moving-cell count.
+          still   — no new emission (the existing aura keeps drifting)
+          gentle  — slow, budgeted emission: sustained motion fills the
+                    aura cap in ~FILL_TIME_S, scaled 0.3x..1.6x by energy
+          sudden  — an immediate burst: up to GESTURE_BURST particles in
+                    one frame, brighter (larger), thrown harder along the
+                    flow — a gesture should feel *answered*
+
+        Sudden bursts are rate-limited (one per ~0.35 s) so a sustained
+        frenzied movement produces repeated bursts, not a solid mass.
         """
         n_free = self.particle_cap - self._n
         if n_free <= 0:
             self.frames_at_capacity += 1
             return
+
+        # stillness keeps the piece alive: a slow ambient "breath" of
+        # large, dim particles from anywhere in the frame (no motion
+        # cells needed), so the aura never fully empties and silence is
+        # a valid aesthetic state. A fractional accumulator lets
+        # sub-1-per-frame rates emit every few frames instead of never.
+        if gesture == "still":
+            self._breath_accum += self.particle_cap * AMBIENT_BREATH_RATE * dt
+            n_emit = int(min(n_free, self._breath_accum))
+            self._breath_accum -= n_emit
+            if n_emit == 0:
+                return
+            pick = self._np_rng.integers(0, FRAME_W * FRAME_H, size=n_emit)
+            gy, gx = np.divmod(pick, FRAME_W)
+            fxs = np.clip(gx, 0, FRAME_W - 1)
+            fys = np.clip(gy, 0, FRAME_H - 1)
+            i0 = self._n
+            i1 = i0 + n_emit
+            self._px[i0:i1] = gx + 0.5
+            self._py[i0:i1] = gy + 0.5
+            self._vx[i0:i1] = self._np_rng.normal(0.0, 3.0, n_emit)
+            self._vy[i0:i1] = self._np_rng.normal(0.0, 3.0, n_emit)
+            self._age[i0:i1] = self._np_rng.random(n_emit) * PARTICLE_LIFETIME_S * 0.5
+            self._size[i0:i1] = 3.0 + self._np_rng.random(n_emit) * 3.0
+            # dim cool ambient colour (teal-white), not sampled from frame
+            cols = np.empty((n_emit, 3), dtype=np.float32)
+            cols[:, 0] = 40 + self._np_rng.random(n_emit) * 30
+            cols[:, 1] = 90 + self._np_rng.random(n_emit) * 50
+            cols[:, 2] = 110 + self._np_rng.random(n_emit) * 60
+            self._col[i0:i1] = cols
+            self._n = i1
+            return
+
         active = np.flatnonzero(cells.ravel())
         if active.size == 0:
             return
-        energy_factor = 0.3 + min(1.6, energy / 12.0)
-        budget = (self.particle_cap / FILL_TIME_S) * dt * energy_factor
-        n_emit = int(min(n_free, active.size, max(budget, 1.0)))
+
+        # a sudden gesture answers with an immediate burst (rate-limited)
+        burst = gesture == "sudden" and (time.time() - self._last_burst_t) >= 0.35
+        if burst:
+            self._last_burst_t = time.time()
+
+        if gesture == "still" and not burst:
+            # motion cells present but energy very low: nothing new
+            return
+        if gesture == "gentle" or (gesture == "still" and burst) or not burst:
+            # gentle emission, or a rate-limited sudden falling back to the
+            # budgeted profile (never a second mass burst within 0.35 s)
+            energy_factor = 0.3 + min(1.6, energy / 12.0)
+            budget = (
+                (self.particle_cap / FILL_TIME_S) * dt * energy_factor
+                * self.eff["emission_scale"]
+            )
+            n_emit = int(min(n_free, active.size, max(budget, 1.0)))
+            s_lo, s_hi = self.eff["size_range"]
+            size_lo, size_hi = s_lo, s_hi
+            flow_gain = 6.0
+            jitter = 9.0
+        else:
+            n_emit = int(min(n_free, active.size, GESTURE_BURST))
+            s_lo, s_hi = self.eff["size_range"]
+            size_lo, size_hi = s_lo * 1.5, s_hi * 1.6   # bursts flare
+            flow_gain = 14.0
+            jitter = 26.0
         if n_emit <= 0:
             return
 
@@ -413,15 +893,18 @@ class Whispers:
         self._px[i0:i1] = (gx + self._np_rng.random(n_emit)) * sx
         self._py[i0:i1] = (gy + self._np_rng.random(n_emit)) * sy
         self._vx[i0:i1] = (
-            flow_x.ravel()[pick] * 6.0 + self._np_rng.normal(0.0, 9.0, n_emit)
+            flow_x.ravel()[pick] * flow_gain + self._np_rng.normal(0.0, jitter, n_emit)
         )
         self._vy[i0:i1] = (
-            flow_y.ravel()[pick] * 6.0 + self._np_rng.normal(0.0, 9.0, n_emit)
+            flow_y.ravel()[pick] * flow_gain + self._np_rng.normal(0.0, jitter, n_emit)
         )
         self._age[i0:i1] = 0.0
-        self._size[i0:i1] = 1.2 + self._np_rng.random(n_emit) * 2.4
-        self._col[i0:i1] = frame[fys, fxs].astype(np.float32)
+        self._size[i0:i1] = size_lo + self._np_rng.random(n_emit) * (size_hi - size_lo)
+        # colour: sampled from the frame, then shaped by the preset's map
+        self._col[i0:i1] = self.eff["color_map"](frame[fys, fxs].astype(np.float32))
         self._n = i1
+        if burst:
+            self.bursts_fired += 1
 
     def _update_particles(self, dt: float):
         """Advance the alive slice: swirl field, drag, buoyancy, ageing."""
@@ -429,7 +912,7 @@ class Whispers:
         if n == 0:
             return
         t = time.time() - self._start_t
-        ang = t * SWIRL_RATE
+        ang = t * self.eff["swirl_rate"]
         ox = self._px[:n] - FRAME_W / 2
         oy = self._py[:n] - FRAME_H / 2
         swirl_gain = 0.9 + 0.35 * math.sin(ang)
@@ -438,7 +921,7 @@ class Whispers:
         drag = 1.0 - min(0.9, 0.85 * dt)
         self._vx[:n] *= drag
         self._vy[:n] *= drag
-        self._vy[:n] -= 1.4 * dt                 # faint upward buoyancy
+        self._vy[:n] -= self.eff["buoyancy"] * dt    # preset buoyancy (may sink)
         self._px[:n] += self._vx[:n] * dt
         self._py[:n] += self._vy[:n] * dt
         self._age[:n] += dt
@@ -474,22 +957,53 @@ class Whispers:
             return
         xs = self._px[:n].astype(np.int32) >> 1
         ys = self._py[:n].astype(np.int32) >> 1
-        fade = 1.0 - self._age[:n] / PARTICLE_LIFETIME_S
-        np.clip(fade, 0.0, 1.0, out=fade)
-        fade = 0.06 + 0.94 * fade * fade        # dim slowly, die at end
+        fade_norm = 1.0 - self._age[:n] / PARTICLE_LIFETIME_S
+        np.clip(fade_norm, 0.0, 1.0, out=fade_norm)
+        floor = self.eff["brightness_floor"]
+        fade = floor + (1.0 - floor) * fade_norm ** self.eff["fade_exp"]
         glow = self._glow
         glow.fill(0.0)
         np.add.at(glow, (ys, xs), self._col[:n] * fade[:, None] * 0.55)
-        halo = cv2.GaussianBlur(glow, (0, 0), 1.1)
+        halo = cv2.GaussianBlur(glow, (0, 0), self.eff["glow_sigma"])
         core = cv2.resize(glow, (FRAME_W, FRAME_H), interpolation=cv2.INTER_NEAREST)
         full = cv2.resize(halo, (FRAME_W, FRAME_H), interpolation=cv2.INTER_LINEAR)
         out = canvas.astype(np.float32)
-        out += core * 0.9
-        out += full * 1.4
+        out += core * self.eff["core_gain"]
+        out += full * self.eff["halo_gain"]
         np.clip(out, 0.0, 255.0, out=out)
         canvas[:] = out.astype(np.uint8)
 
     # -- whispers -------------------------------------------------------------------
+
+    def _maybe_texture(self, energy, gesture, cells):
+        """Keep a whisper texture playing: a new clip starts when the
+        previous one has ended (clips are ~2.2 s), so the bed is
+        continuous but never overlaps. Intensity follows motion energy,
+        formants follow the gesture state, stereo pan follows the
+        horizontal centroid of motion. No-op when audio is unavailable
+        (degraded SoundPlayer) — the visuals must never depend on sound.
+        """
+        if not self.sound_enabled or self.sound_player is None:
+            return False
+        now = time.time()
+        if now < self._last_texture_end_t:
+            return False  # previous clip still playing
+        try:
+            ys, xs = np.nonzero(cells)
+            if ys.size:
+                pan = float(np.clip((xs.mean() / DIFF_W) * 2.0 - 1.0, -1.0, 1.0))
+            else:
+                pan = 0.0
+            data, sr = self.texture.clip(energy, gesture, pan)
+            self.sound_player.play_audio(data, samplerate=sr, blocking=False)
+            self.texture_clips_played += 1
+            self._last_texture_end_t = now + data.shape[0] / sr - 0.15
+            return True
+        except Exception as e:
+            # audio degraded: disable the texture, keep the loop alive
+            self.logger.warning("Whispers: texture audio unavailable (%s); disabling sound.", e)
+            self.sound_enabled = False
+            return False
 
     def _maybe_whisper(self, energy: float) -> bool:
         """A burst of motion after a quiet period invites one whisper.
@@ -511,8 +1025,9 @@ class Whispers:
         self._last_whisper_t = now
         text = self._rng.choice(WHISPER_PHRASES)
         voice = self.voice
-        self.whispers_attempted += 1
-        self._whisper_busy = True
+        with self._whisper_lock:
+            self.whispers_attempted += 1
+            self._whisper_busy = True
 
         def _synth_and_play():
             path = None
@@ -540,23 +1055,42 @@ class Whispers:
         return True
 
     def _force_whisper(self):
-        """`space`: whisper now, bypassing the quiet-gap (demo control)."""
+        """`space`: whisper now, bypassing the quiet-gap (demo control).
+
+        The gap clock restarts from this forced whisper (a spoken line
+        must never overlap the next), but the *attempt* is not re-fired
+        on the next frame: `_maybe_whisper` already stamped the time.
+        """
         saved = self._last_whisper_t
-        self._last_whisper_t = -math.inf
-        # temporarily pretend the energy is a huge burst
         ok = self._maybe_whisper(1e6)
-        if not ok and self.text2speech is not None and not self._whisper_busy:
-            # gap guard is the only refusing condition at 1e6 energy; retry
-            # once ignoring the busy flag is unsafe, so just restore and leave
-            pass
-        self._last_whisper_t = saved if not self.whisper_events else saved
+        if not ok:
+            # refused (busy synthesising): leave the gap clock untouched
+            self._last_whisper_t = saved
 
     # -- controls ----------------------------------------------------------------------
+
+    def _poll_midi(self):
+        """Optional MIDI controls, as multiplicative user-adjustments on
+        the preset (default 1.0). CC74 size/brightness, CC71 swirl rate,
+        CC73 emission density, CC91 trail persistence. Absent or degraded
+        MIDI leaves everything at 1.0."""
+        midi = getattr(self.manager, "midi_input", None)
+        if midi is None:
+            return
+        try:
+            for cc, key in ((74, "size"), (71, "swirl"), (73, "emission"), (91, "trail")):
+                v = midi.get(cc, default=-1.0)
+                if v < 0:
+                    continue
+                # 0..1 fader -> 0.5x..1.5x user-adjust, centred at 0.5
+                self.midi_adjust[key] = 0.5 + v
+        except Exception:
+            pass  # MIDI degraded: controls simply stop responding
 
     def _poll_controls(self):
         """Edge-triggered keys from pynput/pyglet, plus the OpenCV fallback."""
         pressed = set()
-        for k in ("c", "m", "space", "h", "q"):
+        for k in ("c", "m", "space", "h", "s", "q", "1", "2", "3", "4"):
             try:
                 if self.keyboard.is_key_pressed(k):
                     pressed.add(k)
@@ -587,6 +1121,19 @@ class Whispers:
             self._show_motion = not self._show_motion
         elif k == "space":
             self._force_whisper()
+        elif k == "s":
+            self.sound_enabled = not self.sound_enabled
+            if not self.sound_enabled:
+                try:
+                    self.sound_player.stop_sound()
+                except Exception:
+                    pass
+            self.logger.info("Whispers: sound %s.", "on" if self.sound_enabled else "off")
+        elif k in PRESET_KEYS:
+            self.apply_preset(PRESET_KEYS[k], lerp=True)
+            self.logger.info(
+                "Whispers: preset -> %s (%s).", k, self.preset_label
+            )
         elif k == "h":
             self._show_hud = not self._show_hud
         elif k == "q":
@@ -604,11 +1151,13 @@ class Whispers:
 
         res = getattr(self, "_last_whisper_result", None)
         lines = [
-            f"whispers  |  source: {self.source_kind} ({self.source_detail})",
+            f"whispers  |  {self.preset_label}  |  source: {self.source_kind} ({self.source_detail})",
             f"{self.fps:5.1f} fps  |  {self._n} particles / cap {self.particle_cap}"
-            f"  |  energy {self.motion_energy:.1f}",
-            f"whispers spoken {self.whispers_spoken} / attempted {self.whispers_attempted}",
-            "[c] clear  [m] motion overlay  [space] whisper  [h] hud  [q] quit",
+            f"  |  energy {self.motion_energy:.1f}  |  {self._gesture_now}",
+            f"whispers spoken {self.whispers_spoken} / attempted {self.whispers_attempted}"
+            f"  |  texture {self.texture_clips_played}"
+            + ("" if self.sound_enabled else "  (muted)"),
+            "[c] clear  [m] motion  [space] whisper  [s] sound  [1-4] preset  [h] hud  [q] quit",
         ]
         y = 22
         for line in lines:
@@ -689,21 +1238,27 @@ class Whispers:
                     break
 
                 self._poll_controls()
+                self._poll_midi()
 
                 frame = self._read_source_frame()
                 gray = self._grey_grid(frame)
-                energy, cells, flow_x, flow_y = self._motion_field(gray)
+                energy, cells, flow_x, flow_y, gesture = self._motion_field(gray)
                 self.motion_energy = energy
                 self._energy_ema = 0.94 * self._energy_ema + 0.06 * energy
                 self._prev_gray = gray
+                self._update_state_blend(gesture, dt)
 
-                # trails: decay the canvas toward the current source frame
+                # trails: decay the canvas toward the tinted source frame
+                eff = self.eff
                 src = frame.astype(np.float32)
+                tint = np.array(eff["bg_tint"], dtype=np.float32)
+                k = eff["bg_tint_k"]
+                src = src * (1.0 - k) + tint * k
                 prev = canvas.astype(np.float32)
                 blended = src * (1.0 - self.trail_alpha) + prev * self.trail_alpha
                 canvas[:] = np.clip(blended, 0, 255).astype(np.uint8)
 
-                self._spawn(frame, cells, flow_x, flow_y, energy, dt)
+                self._spawn(frame, cells, flow_x, flow_y, energy, gesture, dt)
                 self._update_particles(dt)
                 self._draw_particles(canvas)
 
@@ -713,6 +1268,7 @@ class Whispers:
                     self._draw_hud(canvas)
 
                 self._maybe_whisper(energy)
+                self._maybe_texture(energy, gesture, cells)
 
                 self.renderer.render(canvas)
                 self._maybe_open_writer(canvas)

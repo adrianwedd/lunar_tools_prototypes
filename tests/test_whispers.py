@@ -168,7 +168,7 @@ def test_emission_follows_motion_within_three_frames():
     w._start_t = time.time()
     frames = _motion_frames()
     gray = w._grey_grid(w._to_frame(frames[0]))
-    energy0, _, _, _ = w._motion_field(gray)
+    energy0, _, _, _, _g0 = w._motion_field(gray)
     w._prev_gray = gray
     assert w._n == 0
 
@@ -176,8 +176,8 @@ def test_emission_follows_motion_within_three_frames():
     emitted_by = None
     for i, f in enumerate(frames[1:] + _motion_frames()[1:], start=1):
         g = w._grey_grid(w._to_frame(f))
-        energy, cells, fx, fy = w._motion_field(g)
-        w._spawn(w._to_frame(f), cells, fx, fy, energy, 1 / 60)
+        energy, cells, fx, fy, gesture = w._motion_field(g)
+        w._spawn(w._to_frame(f), cells, fx, fy, energy, gesture, 1 / 60)
         if w._n > 0:
             emitted_by = i
             break
@@ -187,7 +187,9 @@ def test_emission_follows_motion_within_three_frames():
     )
 
 
-def test_still_room_emits_nothing():
+def test_still_room_emits_no_motion_particles():
+    """A still room emits no motion-driven particles — but the ambient
+    breath keeps the aura alive (the piece never fully empties)."""
     w = Whispers(make_manager(), seed=2)
     w._start_t = time.time()
     frame = np.zeros((720, 1280, 3), dtype=np.uint8)
@@ -196,11 +198,21 @@ def test_still_room_emits_nothing():
     w._prev_gray = gray  # prime
     for _ in range(30):
         g = w._grey_grid(frame)
-        energy, cells, fx, fy = w._motion_field(g)
-        w._spawn(frame, cells, fx, fy, energy, 1 / 60)
+        energy, cells, fx, fy, gesture = w._motion_field(g)
+        assert cells.sum() == 0  # zero motion cells: the differencer sees nothing
+        assert gesture == "still" or w._gesture_frames > 0
+        w._spawn(frame, cells, fx, fy, energy, gesture, 1 / 60)
         w._prev_gray = g
-    assert w._n == 0
-    assert w.motion_energy == pytest.approx(0.0, abs=0.5)
+    assert energy == pytest.approx(0.0, abs=0.5)
+    # ambient breath: particles keep appearing (piece stays alive)
+    w2 = Whispers(make_manager(), seed=2)
+    w2._start_t = time.time()
+    w2._prev_gray = w2._grey_grid(frame)
+    n_before = w2._n
+    for _ in range(120):  # 2 s at 60 fps
+        e2, c2, fx2, fy2, g2 = w2._motion_field(w2._grey_grid(frame))
+        w2._spawn(frame, c2, fx2, fy2, e2, g2, 1 / 60)
+    assert w2._n > n_before, "stillness must keep the aura breathing"
 
 
 def test_aura_persists_and_ages_out():
@@ -213,8 +225,8 @@ def test_aura_persists_and_ages_out():
     counts = []
     for f in frames[1:]:
         g = w._grey_grid(w._to_frame(f))
-        energy, cells, fx, fy = w._motion_field(g)
-        w._spawn(w._to_frame(f), cells, fx, fy, energy, 1 / 60)
+        energy, cells, fx, fy, gesture = w._motion_field(g)
+        w._spawn(w._to_frame(f), cells, fx, fy, energy, gesture, 1 / 60)
         w._update_particles(1 / 60)
         w._prev_gray = g
         counts.append(w._n)
@@ -255,8 +267,8 @@ def test_sixty_fps_at_720p_with_2000_particles():
     for _ in range(240):
         t0 = time.perf_counter()
         g = w._grey_grid(frame)
-        energy, cells, fx, fy = w._motion_field(g)
-        w._spawn(frame, cells, fx, fy, energy, 1 / 60)
+        energy, cells, fx, fy, gesture = w._motion_field(g)
+        w._spawn(frame, cells, fx, fy, energy, gesture, 1 / 60)
         w._update_particles(1 / 60)
         w._draw_particles(canvas)
         w._prev_gray = g

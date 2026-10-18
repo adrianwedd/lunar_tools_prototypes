@@ -1,16 +1,16 @@
 {
   "mode": "smoke",
-  "frames_rendered": 1300,
-  "fps_measured": 107.7,
+  "frames_rendered": 588,
+  "fps_measured": 21.6,
   "duration_exit": true,
   "source_kind": "video",
-  "motion_energy_last": 0.51,
-  "particles_alive_at_end": 1301,
-  "whispers_attempted": 4,
-  "whispers_spoken": 4,
-  "tts_calls": 4,
-  "playback_calls": 4,
+  "motion_energy_last": 0.0,
+  "particles_alive_at_end": 1744,
+  "whispers_attempted": 2,
+  "whispers_spoken": 2,
+  "tts_calls": 2,
+  "playback_calls": 8,
   "playback_nonblocking": true,
   "last_fatal_error": null,
-  "date": "2026-10-18 18:13:02"
+  "date": "2026-10-18 18:57:56"
 }

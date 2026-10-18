@@ -3,22 +3,22 @@
   "frames": 600,
   "particle_cap": 2000,
   "alive_first_last": [
-    2000,
-    2000
+    1801,
+    1801
   ],
-  "alive_mean": 2000.0,
+  "alive_mean": 1801.005,
   "per_frame_ms": {
-    "mean": 4.056,
-    "p95": 4.467,
-    "max": 9.391
+    "mean": 4.657,
+    "p95": 5.12,
+    "max": 8.945
   },
   "stage_mean_us": {
-    "motion+spawn": 0.3,
-    "update": 21.9,
-    "draw": 3771.9
+    "motion+spawn": 41.3,
+    "update": 21.3,
+    "draw": 3809.5
   },
-  "fps_equiv": 246.6,
+  "fps_equiv": 214.7,
   "acceptance_60fps_2k_particles": true,
   "machine": "arm64",
-  "date": "2026-10-18 18:12:47"
+  "date": "2026-10-18 18:57:43"
 }

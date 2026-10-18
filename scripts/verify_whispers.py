@@ -137,11 +137,15 @@ def mode_perf():
         frame = next(frames_iter)
         t0 = time.perf_counter()
         gray = w._grey_grid(frame)
-        energy, cells, flow_x, flow_y = w._motion_field(gray)
+        energy, cells, flow_x, flow_y, gesture = w._motion_field(gray)
         w.motion_energy = energy
         w._prev_gray = gray
+        # keep the store near cap (200 free slots) every frame: the honest
+        # near-worst case for spawn/update/draw. (At exactly cap, spawn is
+        # a legitimate no-op — but then it isn't being measured.)
+        w._n = n - 200
         t1 = time.perf_counter()
-        w._spawn(frame, cells, flow_x, flow_y, energy, 1 / 60)
+        w._spawn(frame, cells, flow_x, flow_y, energy, "gentle", 1 / 60)
         t2 = time.perf_counter()
         w._update_particles(1 / 60)
         t3 = time.perf_counter()

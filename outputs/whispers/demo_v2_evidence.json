@@ -1,0 +1,452 @@
+{
+  "run": "whispers-demo-v2",
+  "date": "2026-10-18 18:54:04",
+  "wall_seconds": 30.5,
+  "frames": 304,
+  "fps_measured": 12.5,
+  "frame_time_ms": {
+    "p50": 69.29,
+    "p95": 97.49,
+    "mean": 62.87,
+    "max": 122.51
+  },
+  "pipeline_note": "frame times measure the render call (cv2 imshow+waitKey pump included) in the windowed run; the offline pipeline (motion+spawn+update+draw) measures 4.5 ms p-mean at cap \u2014 see verification.json",
+  "source_kind": "video",
+  "preset": "ember",
+  "particles_end": 1838,
+  "bursts_fired": 4,
+  "texture_clips_played": 15,
+  "audio_clips_captured": 16,
+  "whispers_tts": [
+    1,
+    1
+  ],
+  "last_fatal_error": null,
+  "phase_log": [
+    {
+      "t": 0.54,
+      "arc_mode": "still",
+      "gesture": "still",
+      "energy": 0.0,
+      "particles": 14,
+      "bursts": 0
+    },
+    {
+      "t": 1.06,
+      "arc_mode": "still",
+      "gesture": "still",
+      "energy": 0.0,
+      "particles": 36,
+      "bursts": 0
+    },
+    {
+      "t": 1.59,
+      "arc_mode": "still",
+      "gesture": "still",
+      "energy": 0.0,
+      "particles": 54,
+      "bursts": 0
+    },
+    {
+      "t": 2.09,
+      "arc_mode": "still",
+      "gesture": "still",
+      "energy": 0.01,
+      "particles": 75,
+      "bursts": 0
+    },
+    {
+      "t": 2.61,
+      "arc_mode": "still",
+      "gesture": "still",
+      "energy": 0.01,
+      "particles": 86,
+      "bursts": 0
+    },
+    {
+      "t": 3.13,
+      "arc_mode": "still",
+      "gesture": "still",
+      "energy": 0.0,
+      "particles": 108,
+      "bursts": 0
+    },
+    {
+      "t": 3.64,
+      "arc_mode": "still",
+      "gesture": "still",
+      "energy": 0.0,
+      "particles": 128,
+      "bursts": 0
+    },
+    {
+      "t": 4.15,
+      "arc_mode": "still",
+      "gesture": "still",
+      "energy": 0.01,
+      "particles": 147,
+      "bursts": 0
+    },
+    {
+      "t": 4.73,
+      "arc_mode": "still",
+      "gesture": "still",
+      "energy": 0.0,
+      "particles": 159,
+      "bursts": 0
+    },
+    {
+      "t": 5.34,
+      "arc_mode": "still",
+      "gesture": "still",
+      "energy": 0.01,
+      "particles": 179,
+      "bursts": 0
+    },
+    {
+      "t": 5.86,
+      "arc_mode": "still",
+      "gesture": "still",
+      "energy": 0.01,
+      "particles": 199,
+      "bursts": 0
+    },
+    {
+      "t": 6.6,
+      "arc_mode": "still",
+      "gesture": "still",
+      "energy": 0.0,
+      "particles": 217,
+      "bursts": 0
+    },
+    {
+      "t": 7.17,
+      "arc_mode": "still",
+      "gesture": "still",
+      "energy": 0.0,
+      "particles": 239,
+      "bursts": 0
+    },
+    {
+      "t": 7.78,
+      "arc_mode": "still",
+      "gesture": "still",
+      "energy": 0.01,
+      "particles": 262,
+      "bursts": 0
+    },
+    {
+      "t": 8.29,
+      "arc_mode": "gentle",
+      "gesture": "still",
+      "energy": 0.19,
+      "particles": 284,
+      "bursts": 0
+    },
+    {
+      "t": 8.88,
+      "arc_mode": "gentle",
+      "gesture": "gentle",
+      "energy": 0.16,
+      "particles": 292,
+      "bursts": 0
+    },
+    {
+      "t": 9.43,
+      "arc_mode": "gentle",
+      "gesture": "still",
+      "energy": 0.01,
+      "particles": 301,
+      "bursts": 0
+    },
+    {
+      "t": 9.97,
+      "arc_mode": "gentle",
+      "gesture": "still",
+      "energy": 0.08,
+      "particles": 321,
+      "bursts": 0
+    },
+    {
+      "t": 10.86,
+      "arc_mode": "gentle",
+      "gesture": "still",
+      "energy": 0.05,
+      "particles": 341,
+      "bursts": 0
+    },
+    {
+      "t": 11.42,
+      "arc_mode": "gentle",
+      "gesture": "still",
+      "energy": 0.07,
+      "particles": 364,
+      "bursts": 0
+    },
+    {
+      "t": 12.0,
+      "arc_mode": "gentle",
+      "gesture": "still",
+      "energy": 0.01,
+      "particles": 384,
+      "bursts": 0
+    },
+    {
+      "t": 12.55,
+      "arc_mode": "gentle",
+      "gesture": "still",
+      "energy": 0.14,
+      "particles": 392,
+      "bursts": 0
+    },
+    {
+      "t": 13.09,
+      "arc_mode": "gentle",
+      "gesture": "still",
+      "energy": 1.37,
+      "particles": 400,
+      "bursts": 0
+    },
+    {
+      "t": 13.61,
+      "arc_mode": "gentle",
+      "gesture": "still",
+      "energy": 0.04,
+      "particles": 420,
+      "bursts": 0
+    },
+    {
+      "t": 14.12,
+      "arc_mode": "gentle",
+      "gesture": "gentle",
+      "energy": 0.21,
+      "particles": 420,
+      "bursts": 0
+    },
+    {
+      "t": 14.69,
+      "arc_mode": "gentle",
+      "gesture": "still",
+      "energy": 0.08,
+      "particles": 442,
+      "bursts": 0
+    },
+    {
+      "t": 15.23,
+      "arc_mode": "gentle",
+      "gesture": "still",
+      "energy": 1.04,
+      "particles": 450,
+      "bursts": 0
+    },
+    {
+      "t": 15.74,
+      "arc_mode": "gentle",
+      "gesture": "still",
+      "energy": 0.0,
+      "particles": 469,
+      "bursts": 0
+    },
+    {
+      "t": 16.25,
+      "arc_mode": "gentle",
+      "gesture": "still",
+      "energy": 0.01,
+      "particles": 488,
+      "bursts": 0
+    },
+    {
+      "t": 16.77,
+      "arc_mode": "gentle",
+      "gesture": "still",
+      "energy": 0.0,
+      "particles": 504,
+      "bursts": 0
+    },
+    {
+      "t": 17.34,
+      "arc_mode": "gentle",
+      "gesture": "still",
+      "energy": 0.16,
+      "particles": 516,
+      "bursts": 0
+    },
+    {
+      "t": 17.85,
+      "arc_mode": "gentle",
+      "gesture": "still",
+      "energy": 0.04,
+      "particles": 534,
+      "bursts": 0
+    },
+    {
+      "t": 18.43,
+      "arc_mode": "sudden",
+      "gesture": "sudden",
+      "energy": 6.14,
+      "particles": 822,
+      "bursts": 1
+    },
+    {
+      "t": 19.13,
+      "arc_mode": "sudden",
+      "gesture": "gentle",
+      "energy": 0.49,
+      "particles": 1097,
+      "bursts": 2
+    },
+    {
+      "t": 19.65,
+      "arc_mode": "sudden",
+      "gesture": "gentle",
+      "energy": 3.62,
+      "particles": 1147,
+      "bursts": 2
+    },
+    {
+      "t": 20.19,
+      "arc_mode": "sudden",
+      "gesture": "still",
+      "energy": 0.04,
+      "particles": 1689,
+      "bursts": 4
+    },
+    {
+      "t": 20.75,
+      "arc_mode": "sudden",
+      "gesture": "still",
+      "energy": 0.31,
+      "particles": 1699,
+      "bursts": 4
+    },
+    {
+      "t": 21.4,
+      "arc_mode": "still",
+      "gesture": "gentle",
+      "energy": 4.08,
+      "particles": 1714,
+      "bursts": 4
+    },
+    {
+      "t": 21.98,
+      "arc_mode": "still",
+      "gesture": "still",
+      "energy": 0.0,
+      "particles": 1739,
+      "bursts": 4
+    },
+    {
+      "t": 22.5,
+      "arc_mode": "still",
+      "gesture": "still",
+      "energy": 0.0,
+      "particles": 1750,
+      "bursts": 4
+    },
+    {
+      "t": 23.03,
+      "arc_mode": "still",
+      "gesture": "still",
+      "energy": 0.0,
+      "particles": 1757,
+      "bursts": 4
+    },
+    {
+      "t": 23.66,
+      "arc_mode": "still",
+      "gesture": "still",
+      "energy": 0.0,
+      "particles": 1765,
+      "bursts": 4
+    },
+    {
+      "t": 24.2,
+      "arc_mode": "sudden",
+      "gesture": "still",
+      "energy": 1.86,
+      "particles": 1779,
+      "bursts": 4
+    },
+    {
+      "t": 24.75,
+      "arc_mode": "sudden",
+      "gesture": "gentle",
+      "energy": 2.52,
+      "particles": 1793,
+      "bursts": 4
+    },
+    {
+      "t": 25.51,
+      "arc_mode": "sudden",
+      "gesture": "still",
+      "energy": 0.06,
+      "particles": 1799,
+      "bursts": 4
+    },
+    {
+      "t": 26.03,
+      "arc_mode": "sudden",
+      "gesture": "gentle",
+      "energy": 4.83,
+      "particles": 1807,
+      "bursts": 4
+    },
+    {
+      "t": 26.56,
+      "arc_mode": "sudden",
+      "gesture": "gentle",
+      "energy": 0.83,
+      "particles": 1819,
+      "bursts": 4
+    },
+    {
+      "t": 27.08,
+      "arc_mode": "gentle",
+      "gesture": "still",
+      "energy": 0.49,
+      "particles": 1821,
+      "bursts": 4
+    },
+    {
+      "t": 27.64,
+      "arc_mode": "gentle",
+      "gesture": "still",
+      "energy": 0.0,
+      "particles": 1824,
+      "bursts": 4
+    },
+    {
+      "t": 28.16,
+      "arc_mode": "gentle",
+      "gesture": "still",
+      "energy": 0.0,
+      "particles": 1829,
+      "bursts": 4
+    },
+    {
+      "t": 28.72,
+      "arc_mode": "gentle",
+      "gesture": "still",
+      "energy": 0.0,
+      "particles": 1835,
+      "bursts": 4
+    },
+    {
+      "t": 29.23,
+      "arc_mode": "gentle",
+      "gesture": "still",
+      "energy": 0.0,
+      "particles": 1838,
+      "bursts": 4
+    },
+    {
+      "t": 29.76,
+      "arc_mode": "gentle",
+      "gesture": "still",
+      "energy": 0.0,
+      "particles": 1837,
+      "bursts": 4
+    }
+  ],
+  "demo_video": "/Users/adrian/repos/lunar_tools_prototypes/outputs/whispers/whispers_demo_v2.mp4"
+}

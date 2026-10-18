@@ -158,12 +158,34 @@ python lunar_tools_demo.py run whispers --config duration=30 \
 ```
 
 Whispers knobs: `duration` (s), `camera_id`, `video_path`, `voice`,
-`particle_cap` (default 2000), `trail_alpha` (1.0 = no trails),
-`whisper_gap_s`, `record_path` (mp4), `synthetic_motion` (force the
-procedural source). On machines where pyglet finds no screen (SSH/agent
-sessions) set `RENDERER__BACKEND=opencv` for the HighGUI window. Controls
-at the window: `c` clear aura, `m` motion overlay, `space` whisper now,
-`h` HUD, `q` quit.
+`particle_cap` (default 2000), `trail_alpha`, `whisper_gap_s`,
+`record_path` (mp4), `synthetic_motion` (force the procedural source).
+Recorded clips play at wall-time pace regardless of render fps (a
+recorded visitor unfolds in real time). On machines where pyglet finds
+no screen (SSH/agent sessions) set `RENDERER__BACKEND=opencv` for the
+HighGUI window.
+
+Visual presets (keys 1–4): **Ember Library** (warm coals, stately),
+**Tidal Memory** (cyan ramp, halo-sheets), **Ghost Bloom** (inverted
+silhouettes that sink), **Signal Chapel** (stained-glass hues, fast
+swirl). Motion states blend over ~1.5 s: stillness drifts calm and dim
+(the aura never empties — an ambient breath keeps it alive), gentle
+movement blooms slowly, sudden gestures burst bright (rate-limited to
+one per 0.35 s). MIDI (optional): CC74 size, CC71 swirl, CC73 emission,
+CC91 trails, as 0.5×–1.5× adjustments.
+
+Sound: a procedural whisper texture (breathy formant-filtered noise)
+plays continuously — intensity follows motion energy, formants follow
+the gesture state, stereo pan follows the motion's horizontal centroid.
+`s` mutes. Afterwords TTS whispers remain available (`voice` knob) and
+never block the loop; the piece runs identically with audio absent.
+
+Controls at the window: `c` clear aura, `m` motion overlay, `space`
+whisper now, `s` sound, `1-4` preset, `h` HUD, `q` quit.
+
+Demo (stillness → gentle → intense, real pipeline, ~23 s):
+`RENDERER__BACKEND=opencv env/bin/python scripts/make_whispers_demo_v2.py`
+→ `outputs/whispers/whispers_demo_v2.mp4` + preview PNG + evidence JSON.
 
 `--config` is repeatable; the single-string comma form also works, and
 tuple values with commas parse correctly. Malformed entries (no `=`) are
