@@ -574,3 +574,51 @@ class DeprecatedAlias:
             legacy_kwargs.pop(unknown)
 
         return self._gen.generate(prompt, size=size, seed=seed)
+
+
+def load_generated_image(result):
+    """Coerce a generator result to a PIL ``RGB`` image.
+
+    Every backend in this repo returns ``(png_path, metadata)`` — a *path*,
+    not pixels. Legacy prototypes bind that path to a variable named
+    ``image`` and then call PIL methods on it, which fails with
+    ``AttributeError: 'str' object has no attribute 'resize'`` (and used to
+    be masked by the headless null renderer accepting strings). Call sites
+    that actually manipulate pixels (resize, blend, paste) must pass the
+    result through here first.
+
+    Accepts a filesystem path (str/bytes/os.PathLike), an open PIL image,
+    or an ``HxWx3/4`` numpy array. Returns a new ``RGB`` image. Raises
+    ``ValueError`` for anything that cannot be decoded, including ``None``,
+    so the failure names the offending value instead of surfacing three
+    frames later inside the renderer.
+    """
+    import numpy as np
+    from PIL import Image, UnidentifiedImageError
+
+    if result is None:
+        raise ValueError("image generator returned None (no image produced)")
+
+    if isinstance(result, Image.Image):
+        return result.convert("RGB")
+
+    if isinstance(result, np.ndarray):
+        arr = result
+        if arr.dtype != np.uint8:
+            arr = np.clip(arr, 0, 255).astype(np.uint8)
+        if arr.ndim == 2:
+            return Image.fromarray(arr, mode="L").convert("RGB")
+        if arr.ndim == 3 and arr.shape[2] == 4:
+            return Image.fromarray(arr, mode="RGBA").convert("RGB")
+        if arr.ndim == 3 and arr.shape[2] == 3:
+            return Image.fromarray(arr, mode="RGB")
+        raise ValueError(f"cannot interpret array of shape {arr.shape} as an image")
+
+    if isinstance(result, (str, bytes, os.PathLike)):
+        try:
+            with Image.open(result) as im:
+                return im.convert("RGB")
+        except (OSError, UnidentifiedImageError) as e:
+            raise ValueError(f"could not decode generated image {result!r}: {e}") from e
+
+    raise ValueError(f"unsupported generated-image result: {type(result).__name__}")
