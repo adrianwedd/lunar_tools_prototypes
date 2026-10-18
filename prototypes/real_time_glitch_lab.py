@@ -79,10 +79,10 @@ class RealTimeGlitchArtLab:
             if self.keyboard.is_key_pressed(key):
                 self.glitch_type = glitch
                 self.logger.info(f"Glitch family: {glitch}")
-        if self.keyboard.is_key_pressed("\x1b[A"):  # up arrow (ncurses name)
+        if self.keyboard.is_key_pressed("up"):
             self.intensity = min(1.0, self.intensity + 0.1)
             self.logger.info(f"Intensity: {self.intensity:.2f}")
-        if self.keyboard.is_key_pressed("\x1b[B"):
+        if self.keyboard.is_key_pressed("down"):
             self.intensity = max(0.0, self.intensity - 0.1)
             self.logger.info(f"Intensity: {self.intensity:.2f}")
         if self.keyboard.is_key_pressed(" "):
@@ -94,19 +94,20 @@ class RealTimeGlitchArtLab:
         return True
 
     def _midi_adjust(self):
-        """Optional MIDI: CC20-23 pick family (any movement), CC24 intensity."""
-        if not self._midi_ready:
-            # First CC movement arms the lane; probe cheaply once.
-            names = getattr(self.midi, "_cc_values", {})
-            self._midi_ready = True  # mido polling is cheap after this
+        """Optional MIDI: CC20-23 pick family, CC24 sets intensity (0..1).
+
+        mido polling is cheap and degrades to no-ops when no device is
+        present (tools.input.MidiInput already handles the warn-once path).
+        """
         cc = self.midi
         for idx, glitch in enumerate(GLITCH_TYPES):
             v = cc.get(20 + idx)
-            if v > 0.5 and self._last_midi_cc.get(20 + idx) != v:
+            if v > 0.5 and v != self._last_midi_cc.get(20 + idx):
                 self.glitch_type = glitch
-                self._last_midi_cc[20 + idx] = v
+                self.logger.info(f"Glitch family: {glitch} (MIDI CC{20 + idx})")
+            self._last_midi_cc[20 + idx] = v
         v = cc.get(24)
-        if v is not None and v > 0:
+        if v > 0:
             self.intensity = round(min(1.0, max(0.0, v)), 2)
 
     # -- standby --------------------------------------------------------------

@@ -172,13 +172,13 @@ class SeedSurfer:
         if self.keyboard.is_key_pressed("q"):
             return False
         step = 0
-        if self.keyboard.is_key_pressed("+") or self.keyboard.is_key_pressed("\x1b[A"):
+        if self.keyboard.is_key_pressed("+") or self.keyboard.is_key_pressed("up"):
             step = 1
-        elif self.keyboard.is_key_pressed("-") or self.keyboard.is_key_pressed("\x1b[B"):
+        elif self.keyboard.is_key_pressed("-") or self.keyboard.is_key_pressed("down"):
             step = -1
-        elif self.keyboard.is_key_pressed("\x1b[C"):
+        elif self.keyboard.is_key_pressed("right"):
             step = 10
-        elif self.keyboard.is_key_pressed("\x1b[D"):
+        elif self.keyboard.is_key_pressed("left"):
             step = -10
         elif self.keyboard.is_key_pressed(" "):
             step = random.randint(1, 50) * random.choice((1, -1))
