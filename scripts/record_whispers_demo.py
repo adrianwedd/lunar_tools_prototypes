@@ -110,7 +110,10 @@ def main():
     while time.time() < deadline and w.whispers_spoken < 2:
         time.sleep(0.2)
 
-    events = [e.as_dict() for e in w.whisper_events]
+    # snapshot the event list under the same lock the synth thread uses —
+    # a still-live daemon can append during the comprehension below
+    with w._whisper_lock:
+        events = [e.as_dict() for e in list(w.whisper_events)]
     import soundfile as sf
 
     for e in events:

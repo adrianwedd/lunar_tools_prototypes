@@ -311,3 +311,95 @@ def test_audio_failure_disables_sound_not_visuals():
     assert w.last_fatal_error is None
     assert w.frame_count > 10
     assert w.sound_enabled is False, "broken audio must disable the texture"
+
+# ---------------------------------------------------------------------------
+# Delegate-review regression tests (batch 2 findings)
+# ---------------------------------------------------------------------------
+
+
+def test_cv_key_sources_do_not_eat_each_others_edges():
+    """A fresh keyboard press must fire even while the renderer's last_key
+    holds a stale same-letter value from its own (independent) hold state —
+    and vice versa. Both sources edge-trigger on their own history."""
+    w = _w(seed=31)
+    w._n = 10
+    # poll 1: cv key 'c' appears (fresh cv edge) -> fires
+    w.renderer.last_key = "c"
+    w._poll_controls()
+    assert w._n == 0
+    # poll 2: cv key unchanged (held); keyboard never reported anything
+    w._n = 10
+    w._poll_controls()
+    assert w._n == 10, "no new edge: must not re-fire"
+    # poll 3: keyboard reports 'c' newly held; cv stale 'c' must not
+    # suppress the keyboard's fresh edge
+    w.manager.keyboard_input.pressed.add("c")
+    w._poll_controls()
+    assert w._n == 0, "keyboard-reported fresh press must fire despite stale cv key"
+    # poll 4: everything held -> no re-fire
+    w._n = 10
+    w._poll_controls()
+    assert w._n == 10
+    # poll 5: keyboard releases, cv releases (None) -> both re-arm
+    w.manager.keyboard_input.pressed.clear()
+    w.renderer.last_key = None
+    w._poll_controls()
+    w.manager.keyboard_input.pressed.add("c")
+    w.renderer.last_key = "c"
+    w._poll_controls()
+    assert w._n == 0, "release-then-press must re-fire"
+
+
+def test_spawn_positions_are_draw_safe_without_update():
+    """Regression: _draw_particles immediately after _spawn must not
+    index out of bounds (spawn used to allow px == FRAME_W)."""
+    w = _w(seed=32)
+    frame = np.zeros((720, 1280, 3), dtype=np.uint8)
+    frame[:] = 60
+    flow = np.zeros((90, 160), dtype=np.float32)
+    cells = np.zeros((90, 160), dtype=bool)
+    cells[:, :] = True          # every cell moving
+    w._spawn(frame, cells, flow, flow, 30.0, "sudden", 1 / 60)
+    assert w._n > 0
+    canvas = np.zeros((720, 1280, 3), dtype=np.uint8)
+    w._draw_particles(canvas)    # must not raise
+    assert canvas.max() >= 0
+
+
+def test_waitkey_special_keys_do_not_alias_ascii():
+    """The renderer's key decode must reject special-key codes (arrows,
+    function keys) whose low byte would alias onto ASCII commands."""
+    import numpy as np
+    from src.lunar_tools_art.tools.display import Renderer
+
+    class FakeCv2:
+        imshow_calls = []
+        waitKey_values = iter([])
+
+        @staticmethod
+        def imshow(win, img):
+            pass
+
+        @staticmethod
+        def waitKey(ms):
+            return next(FakeCv2.waitKey_values, -1)
+
+    import sys
+    import types
+    sys.modules["cv2"] = types.SimpleNamespace(
+        imshow=FakeCv2.imshow, waitKey=FakeCv2.waitKey
+    )
+    try:
+        r = Renderer(64, 64, backend="opencv")
+        # left arrow on macOS/opencv is a large code; -1 low byte aliases
+        for special in (-1, 2424832, 1048676, 65370):
+            FakeCv2.waitKey_values = iter([special])
+            r.render(np.zeros((64, 64, 3), dtype=np.uint8))
+            assert r.last_key is None, f"special key {special} leaked as {r.last_key!r}"
+        for printable in (113, 32, 104):   # 'q', space, 'h'
+            FakeCv2.waitKey_values = iter([printable])
+            r.render(np.zeros((64, 64, 3), dtype=np.uint8))
+            expected = "space" if printable == 32 else chr(printable)
+            assert r.last_key == expected
+    finally:
+        del sys.modules["cv2"]

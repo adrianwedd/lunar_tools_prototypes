@@ -333,13 +333,12 @@ class AudioReactiveFractalForest:
                 if self.keyboard.is_key_pressed(k):
                     pressed.add(k)
             except Exception:
-                pass
-        last = getattr(self.renderer, "last_key", None)
-        if last is not None:
-            pressed.add(last)
-            if last == self._prev_key:
-                pressed.discard(last)
-        self._prev_key = last
+                if k in self._held:
+                    pressed.add(k)  # an error is not a release
+        cv_key = getattr(self.renderer, "last_key", None)
+        if cv_key is not None and cv_key != self._prev_key:
+            pressed.add(cv_key)      # fresh edge in the window
+        self._prev_key = cv_key
         for k in pressed - self._held:
             self._on_key(k)
         self._held = pressed

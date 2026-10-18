@@ -107,17 +107,15 @@ class Renderer:
         cv2.imshow("Lunar Tools Art", bgr)
         # Surface the last key pressed in the window so prototypes can be
         # interactive even when pynput lacks Accessibility trust (terminal
-        # agents, SSH sessions). -1 (no key) clears it, which gives natural
-        # edge-triggering.
-        code = cv2.waitKey(1) & 0xFF
-        if code == 0xFF:
-            self.last_key = None
-        elif code == 32:
-            self.last_key = "space"
-        elif 32 < code < 127:
-            self.last_key = chr(code)
+        # agents, SSH sessions). Only exact ASCII printable codes are
+        # mapped: waitKey returns large codes for special keys (arrows,
+        # function keys) whose low byte can alias onto ASCII commands
+        # after masking — those must NOT become 'q'/'c'/'m' by accident.
+        code = cv2.waitKey(1)
+        if 32 <= code <= 126:
+            self.last_key = "space" if code == 32 else chr(code)
         else:
-            self.last_key = None
+            self.last_key = None  # -1 (no key) and all special keys
 
     def set_size(self, width, height):
         self.width = width

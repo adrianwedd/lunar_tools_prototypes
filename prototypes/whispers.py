@@ -475,7 +475,7 @@ class Whispers:
         # Controls / evidence.
         self._show_motion = False
         self._show_hud = False
-        self._prev_key = None                # cv2 last_key edge detection
+        self._prev_cv_key = None             # cv2 last_key edge detection
         self._held: set[str] = set()
         self._running = False
         self._start_t = 0.0
@@ -588,7 +588,9 @@ class Whispers:
                 import cv2
 
                 cap = cv2.VideoCapture(str(path))
-                if cap.isOpened():
+                if not cap.isOpened():
+                    cap.release()  # never leak a failed-open handle
+                else:
                     ok, frame_bgr = cap.read()
                     if ok and frame_bgr is not None:
                         self._capture = cap
@@ -672,6 +674,9 @@ class Whispers:
                 return self._to_frame(frame_bgr[..., ::-1])
             self.source_kind = "synthetic"
             self.source_detail += " (video ended; could not loop)"
+            if self._capture is not None:
+                self._capture.release()   # don't hold a dead handle
+                self._capture = None
         return self._synthetic_frame(time.time())
 
     # -- motion analysis --------------------------------------------------------
@@ -890,8 +895,12 @@ class Whispers:
 
         i0 = self._n
         i1 = i0 + n_emit
-        self._px[i0:i1] = (gx + self._np_rng.random(n_emit)) * sx
-        self._py[i0:i1] = (gy + self._np_rng.random(n_emit)) * sy
+        self._px[i0:i1] = np.clip(
+            (gx + self._np_rng.random(n_emit)) * sx, 0.0, FRAME_W - 1e-3
+        )
+        self._py[i0:i1] = np.clip(
+            (gy + self._np_rng.random(n_emit)) * sy, 0.0, FRAME_H - 1e-3
+        )
         self._vx[i0:i1] = (
             flow_x.ravel()[pick] * flow_gain + self._np_rng.normal(0.0, jitter, n_emit)
         )
@@ -1088,27 +1097,28 @@ class Whispers:
             pass  # MIDI degraded: controls simply stop responding
 
     def _poll_controls(self):
-        """Edge-triggered keys from pynput/pyglet, plus the OpenCV fallback."""
+        """Edge-triggered keys. Two sources are tracked SEPARATELY so they
+        cannot eat each other's edges: (a) pynput/pyglet state via
+        is_key_pressed, (b) the OpenCV renderer's last_key. A held-key
+        discard in one source must not suppress a fresh press reported by
+        the other, and a key whose poll raised (exhausted mock, flaky
+        backend) keeps its previous membership instead of looking
+        released."""
         pressed = set()
         for k in ("c", "m", "space", "h", "s", "q", "1", "2", "3", "4"):
             try:
                 if self.keyboard.is_key_pressed(k):
                     pressed.add(k)
             except Exception:
-                pass
-        # OpenCV renderer path: keys arrive via renderer.last_key (cv2
-        # window focused). pynput in untrusted contexts never fires, so this
-        # is what makes interactive control work from a terminal-launched
-        # OpenCV window without Accessibility grants.
-        last = getattr(self.renderer, "last_key", None)
-        if last is not None:
-            pressed.add(last)
-            if last == self._prev_key:
-                pressed.discard(last)  # key still held: edge only
-        if last is None:
-            self._prev_key = None
-        else:
-            self._prev_key = last
+                if k in self._held:
+                    pressed.add(k)  # carry over: an error is not a release
+
+        cv_key = getattr(self.renderer, "last_key", None)
+        if cv_key is not None:
+            if cv_key != self._prev_cv_key:
+                pressed.add(cv_key)   # fresh edge in the window
+            # same key two frames running = still held: no edge
+        self._prev_cv_key = cv_key
 
         for k in pressed - self._held:
             self._on_key(k)
