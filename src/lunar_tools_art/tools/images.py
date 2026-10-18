@@ -429,6 +429,18 @@ class _MfluxBackend:
         self.steps = steps
         self.guidance = guidance
         self.model_path = str(model_path) if model_path else None
+        if self.model_path is None:
+            # Prefer a complete local snapshot: letting mflux resolve the repo
+            # through the Hub re-enters snapshot_download and can restart a
+            # multi-GB fetch even when the weights are already cached.
+            candidate = mflux_snapshot_path(model)
+            if candidate:
+                ready, _detail = mflux_weights_status(
+                    {"model_repo": f"local:{candidate}",
+                     "model_revision": Path(candidate).name}
+                )
+                if ready:
+                    self.model_path = candidate
         self._flux = None
         self._repo = None
         self._revision = None

@@ -41,6 +41,10 @@ Controls: `+`/`up` next seed, `-`/`down` previous, `left`/`right` ±10,
 `space` random jump, `s` favourite, `a` prefetch toggle, `q` quit.
 MIDI CC20 is the surf dial; CC21 saves a favourite.
 
+When a complete local FLUX snapshot exists, the adapter uses it directly
+(`model_repo: local:…`) instead of resolving the repo through the Hub, so a
+cached model is never silently re-downloaded.
+
 Measured on the M5 Ultra (FLUX.1-schnell, 4-bit, 4 steps, 512²): 1.64 s warm
 per new seed; a cached seed is served in ~10 µs. Favourites are written to
 `outputs/seed_surfer/favourites.json` with the model identity, weights

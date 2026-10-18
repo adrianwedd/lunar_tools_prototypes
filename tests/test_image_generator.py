@@ -206,6 +206,7 @@ def test_identity_revision_change_changes_cache_identity(tmp_path, monkeypatch):
         model_name = "black-forest-labs/FLUX.1-schnell"
 
     revisions = iter(["aaa", "bbb"])
+    monkeypatch.setattr(images_mod, "mflux_snapshot_path", lambda model: None)
     monkeypatch.setattr(images_mod, "_model_config", lambda name: FakeConfig())
     monkeypatch.setattr(images_mod, "_hf_snapshot_revision", lambda repo: next(revisions))
 
@@ -231,3 +232,47 @@ def test_mflux_weights_status_requires_identity():
     ok, detail = mflux_weights_status({"model_repo": None, "model_revision": None})
     assert ok is False
     assert "not resolved" in detail
+
+
+def test_mflux_auto_uses_complete_local_snapshot(tmp_path, monkeypatch):
+    """The production path must not re-enter the Hub downloader when a
+    complete local snapshot exists."""
+    import numpy as np
+    from PIL import Image
+
+    captured = {}
+
+    class FakeFlux1:
+        def __init__(self, **kwargs):
+            captured.update(kwargs)
+
+        def generate_image(self, **kwargs):
+            img = Image.fromarray(
+                np.zeros((kwargs["height"], kwargs["width"], 3), dtype=np.uint8)
+            )
+
+            class Result:
+                def save(self_inner, path, overwrite=False):
+                    img.save(path)
+
+            return Result()
+
+    class FakeConfig:
+        pass
+
+    from lunar_tools_art.tools import images as images_mod
+
+    snapshot = tmp_path / "snapshots" / "abc123"
+    snapshot.mkdir(parents=True)
+    monkeypatch.setattr(images_mod, "mflux_snapshot_path", lambda model: str(snapshot))
+    monkeypatch.setattr(images_mod, "mflux_weights_status", lambda ident: (True, "ok"))
+    monkeypatch.setattr(images_mod, "_flux1_class", lambda: FakeFlux1)
+    monkeypatch.setattr(images_mod, "_model_config", lambda name: FakeConfig())
+
+    gen = images_mod.ImageGenerator(
+        backend="mflux", model="schnell", output_dir=str(tmp_path)
+    )
+    gen.generate("p", size=(32, 32), seed=1)
+    assert captured["model_path"] == str(snapshot)
+    assert gen.identity()["model_repo"] == f"local:{snapshot}"
+    assert gen.identity()["model_revision"] == "abc123"

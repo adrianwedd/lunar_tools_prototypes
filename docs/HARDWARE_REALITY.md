@@ -236,9 +236,12 @@ with `env -u PYTHONPATH` (see 9.1).
 
 Model identity recorded in every cache entry and image metadata:
 `black-forest-labs/FLUX.1-schnell` @ `741f7c3c…`, 4-bit quantisation, 4 inference
-steps, guidance 4.0. The adapter was pointed at the local snapshot
-(`HF_HUB_OFFLINE` is not usable because mflux resolves the repo through the Hub
-API), so no weights were re-downloaded during measurement.
+steps, guidance 4.0. The adapter auto-selects a **complete local snapshot**
+(verified shard-by-shard) and passes it to `Flux1(model_path=…)`, bypassing the
+Hub downloader entirely; `HF_HUB_OFFLINE` is not usable because mflux's repo
+resolution still calls the Hub API. A production-path check
+(`ImageGenerator(backend="mflux")` with no explicit path) rendered a 512² image
+in 3.2 s incl. load with no new `.incomplete` blobs.
 
 | Size | Cold (load + first render) | Warm mean (n=3) | Peak MLX memory |
 |---|---|---|---|
@@ -295,7 +298,7 @@ Montage: `docs/evidence/glitch_families_montage.png`.
 ### 9.5 Test suite (Python 3.13, `env/`)
 
 `LUNAR_HEADLESS=1 env -u PYTHONPATH ./env/bin/python -m pytest -q`:
-**2 failed, 273 passed** in 105.9 s. Both failures are the pre-existing
+**2 failed, 274 passed** in 105.2 s. Both failures are the pre-existing
 `time-shifted-echo-chamber` pair caused by `pydub 0.25` importing
 `audioop`/`pyaudioop`, removed in Python 3.13 — unrelated to this work and
 reported separately.
