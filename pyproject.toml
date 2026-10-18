@@ -23,7 +23,9 @@ dependencies = [
     "numpy",
     "opencv-python",
     "toml",
-    "pillow",
+    "pillow<13",
+    "diffusers",
+    "psutil",
 ]
 
 [project.optional-dependencies]

@@ -20,7 +20,9 @@ httpx
 numpy
 opencv-python
 toml
-pillow
+pillow<13
+diffusers
+psutil
 
 # extra: vision
 opencv-python>=4.10,<5
