@@ -92,6 +92,21 @@ prototypes outside the 13 listed in #35.
 - Interactive mflux generation pacing on the real 512 px backend (standalone
   mflux timings remain in `docs/evidence/seed_surfer_verification.json`).
 
+## Integration check
+
+`run seed-surfer` previously crashed before the loop: the launcher only
+injected the manager when the constructor parameter was named
+`lunar_tools_art_manager`, while SeedSurfer (and RealTimeGlitchArtLab) use
+`manager`. Fixed in the launcher with regression tests. Verified:
+
+```
+LUNAR_HEADLESS=1 ./env/bin/python lunar_tools_demo.py run seed-surfer --force
+→ "Seed Surfer | +/- seed, ... q quit" and the loop stayed alive until SIGTERM
+```
+
+The glitch lab entry point has the same signature and now constructs too (its
+camera path remains unverified, issue #29).
+
 ## Stretch — STT (#33)
 
 The issue's original blocker is stale: `mlx-whisper 0.4.3`, `faster-whisper
