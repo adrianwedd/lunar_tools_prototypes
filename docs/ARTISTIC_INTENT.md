@@ -5,6 +5,13 @@
 
 **Tagging:** every claim is tagged `[code]` (read from a file at a cited commit/HEAD), `[doc]` (design doc/README), `[commit]` (commit message), or `[inference]` (my conclusion from evidence; no invented intentions).
 
+**Remediation status (2026-10-18):** this document records the *pre-fix* audit. Two
+cross-cutting findings are now closed: **X1** (generator returns a PNG path) in
+`72ff011`, and **X3** (MIDI integer-CC contract) in `ab0be2b`; the Seed Surfer
+interaction loop was reworked separately in `595d0cb`. Evidence:
+`docs/evidence/interaction_contracts_2026-10-18.md`. X2/X4/X5/X6 and the
+per-prototype "current reality" paragraphs still describe HEAD-before-those-commits.
+
 ---
 
 ## 0. The critical historical fact: intent vs. working code
