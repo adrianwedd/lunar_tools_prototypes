@@ -1,0 +1,23 @@
+{
+  "run": "forest-windowed-demo",
+  "date": "2026-10-18 19:10:46",
+  "wall_seconds": 24.06,
+  "frames": 416,
+  "fps_measured": 17.2,
+  "render_call_ms": {
+    "p50": 47.38,
+    "p95": 59.4
+  },
+  "trees": 10,
+  "segments": 4247,
+  "onsets_detected": 87,
+  "last_onset_t": 23.80517816543579,
+  "growth_curve": {
+    "min": 0.317,
+    "max": 0.948,
+    "final": 0.846,
+    "grew_with_music": true
+  },
+  "last_fatal_error": null,
+  "demo_video": "/Users/adrian/repos/lunar_tools_prototypes/outputs/forest/forest_demo.mp4"
+}

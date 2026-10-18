@@ -246,12 +246,16 @@ def test_audio_reactive_fractal_forest_smoke_test():
     AudioReactiveFractalForest = module.AudioReactiveFractalForest
 
     manager = Manager()
-    forest = AudioReactiveFractalForest(manager)
+    # bounded run: the rewritten forest runs a real frame loop; give it a
+    # short duration so the smoke test exercises source open, features,
+    # draw and the duration exit without hanging on keyboard fakes.
+    forest = AudioReactiveFractalForest(manager, duration=0.5)
     try:
-        manager.keyboard_input.is_key_pressed = MagicMock(side_effect=[False, True])
         forest.run()
     except Exception as e:
         pytest.fail(f"AudioReactiveFractalForest.run() raised an exception: {e}")
+    assert forest.frame_count > 0
+    assert forest.last_fatal_error is None
 
 
 # Smoke test for generative-poetry-mosaic.py

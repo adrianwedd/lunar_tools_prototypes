@@ -235,3 +235,28 @@ that:
 - **`numpy._core._multiarray_umath` or mlx import errors** — your shell is
   exporting a `PYTHONPATH` from another interpreter (common when started from
   an agent harness). Launch with `env -u PYTHONPATH ./env/bin/python ...`.
+
+## Fractal Forest (audio-reactive)
+
+```bash
+# with a recorded WAV (looped through the same InputStream shape a live
+# microphone callback would deliver):
+RENDERER__BACKEND=opencv env/bin/python lunar_tools_demo.py run \
+    audio-reactive-fractal-forest --config duration=30 \
+    --config wav_path=outputs/forest/test_signal.wav
+
+# live microphone (optional; falls back to WAV, then silence-drift):
+RENDERER__BACKEND=opencv env/bin/python lunar_tools_demo.py run \
+    audio-reactive-fractal-forest --config use_mic=true
+```
+
+A background thread extracts RMS / spectral centroid / onsets (numpy
+only — no librosa, no LLM); onsets bloom the canopy, energy grows the
+trees, centroid shifts foliage hue (amber→jade). Silence recedes slowly
+with the breeze still swaying — never frozen. Controls: `c` replant,
+`h` HUD, `q` quit.
+
+Note: this machine's Python 3.13.15 build oversleeps OS waits ~100 ms
+(time.sleep/Event.wait/select, measured single-threaded), so the forest
+paces frames with a perf_counter busy-wait. On healthy machines normal
+sleeps are fine; the busy-wait only covers the frame's leftover budget.

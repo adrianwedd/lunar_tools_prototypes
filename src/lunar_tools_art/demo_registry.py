@@ -127,8 +127,18 @@ DEMOS = {
             "audio-reactive-fractal-forest",
             "audio-reactive-fractal-forest",
             "AudioReactiveFractalForest",
-            "An evolving fractal forest whose shape and colors respond to ambient audio.",
-            _req("mic", "renderer", optional=("llm",)),
+            "A fractal forest that breathes with ambient sound: onsets bloom, energy grows, silence drifts.",
+            _req(
+                "renderer",
+                optional=("mic",),
+            ),
+            config_knobs=(
+                ConfigKnob("duration", float, None, "seconds to run before exiting (default: until 'q')"),
+                ConfigKnob("wav_path", str, None, "recorded WAV looped as the audio source (InputStream-shaped)"),
+                ConfigKnob("use_mic", bool, False, "use a live microphone InputStream when available"),
+                ConfigKnob("seed", int, None, "deterministic forest seed"),
+                ConfigKnob("record_path", str, None, "write the rendered window to this mp4 path"),
+            ),
         ),
         Demo(
             "augmented-audio-tours",
