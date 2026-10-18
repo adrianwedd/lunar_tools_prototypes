@@ -17,6 +17,7 @@ dependencies = [
     "python-dotenv",
     "librosa",
     "pydub",
+    "audioop-lts; python_version >= '3.13'",
     "requests",
     "httpx",
     "numpy",

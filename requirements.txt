@@ -14,6 +14,7 @@ opentelemetry-instrumentation-logging
 python-dotenv>=1.2.2
 librosa
 pydub
+audioop-lts; python_version >= '3.13'
 requests>=2.33.0
 httpx
 numpy
