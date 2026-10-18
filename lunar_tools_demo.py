@@ -157,7 +157,12 @@ def _launch(demo, kwargs, style):
     module = importlib.import_module(demo.module)
     cls = getattr(module, demo.class_name)
     manager = LunarToolsArtManager()
-    if "lunar_tools_art_manager" in inspect.signature(cls.__init__).parameters:
+    params = inspect.signature(cls.__init__).parameters
+    # Most prototypes name the parameter `lunar_tools_art_manager`; a few
+    # (SeedSurfer, RealTimeGlitchArtLab) use the shorter `manager`. Both take
+    # the same manager instance — without this, those demos crash at launch
+    # with "missing 1 required positional argument".
+    if "lunar_tools_art_manager" in params or "manager" in params:
         instance = cls(manager, **kwargs)
     else:
         instance = cls(**kwargs)

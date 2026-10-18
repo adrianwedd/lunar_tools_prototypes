@@ -65,3 +65,55 @@ def test_malformed_config_exits_2(capsys):
     with mock.patch.object(cli, "_probes_for_test", {}):
         code = cli.main(["run", "whispers", "--config", "nonsense"])
     assert code == 2
+
+
+def test_launch_passes_manager_to_short_manager_parameter(monkeypatch):
+    """SeedSurfer/RealTimeGlitchArtLab name the arg `manager`, not
+    `lunar_tools_art_manager`; the launcher must still inject the manager."""
+    import sys
+    import types
+
+    seen = {}
+
+    fake_module = types.ModuleType("fake_manager_param_demo")
+
+    class Demo:
+        def __init__(self, manager):
+            seen["manager"] = manager
+
+        def run(self):
+            seen["ran"] = True
+
+    fake_module.ManagerParamDemo = Demo
+    monkeypatch.setitem(sys.modules, "fake_manager_param_demo", fake_module)
+
+    demo = types.SimpleNamespace(
+        module="fake_manager_param_demo", class_name="ManagerParamDemo", name="x"
+    )
+    assert cli._launch(demo, {}, cli.make_style()) == 0
+    assert seen["manager"] is not None
+    assert seen["ran"] is True
+
+
+def test_launch_still_supports_classes_without_manager(monkeypatch):
+    import sys
+    import types
+
+    seen = {}
+    fake_module = types.ModuleType("fake_nomanager_demo")
+
+    class Demo:
+        def __init__(self):
+            seen["constructed"] = True
+
+        def run(self):
+            seen["ran"] = True
+
+    fake_module.NoManagerDemo = Demo
+    monkeypatch.setitem(sys.modules, "fake_nomanager_demo", fake_module)
+
+    demo = types.SimpleNamespace(
+        module="fake_nomanager_demo", class_name="NoManagerDemo", name="x"
+    )
+    assert cli._launch(demo, {}, cli.make_style()) == 0
+    assert seen == {"constructed": True, "ran": True}
