@@ -56,12 +56,16 @@ class VoiceClient:
         self, text: str, voice: str, emotion: str | None = None
     ) -> bytes | None:
         try:
-            body: dict = {"text": text, "voice": voice}
+            # GET /synthesize (query params) is the ungated path on the
+            # Afterwords server; the JSON POST body form is gated behind
+            # --allow-clone (a clone-privacy flag, not needed for plain
+            # generation) and returns 404 without it.
+            params: dict = {"text": text, "voice": voice}
             if emotion:
-                body["emotion"] = emotion
-            resp = httpx.post(
+                params["emotion"] = emotion
+            resp = httpx.get(
                 f"{self.server_url}/synthesize",
-                json=body,
+                params=params,
                 timeout=self.timeout,
             )
             if resp.status_code == 200:

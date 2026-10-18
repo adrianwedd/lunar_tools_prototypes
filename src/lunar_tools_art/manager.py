@@ -21,12 +21,19 @@ class LunarToolsArtManager:
         self.main_queue = MainLoopQueue()
 
         # Initialize tools using configuration
-        renderer_config = config.get("renderer", {"width": 1920, "height": 1080})
+        renderer_config = config.get("renderer", {})
+        # Renderer backend is configurable (pyglet default). "opencv" renders
+        # through a real HighGUI window — the path that works when pyglet has
+        # no Cocoa screen (SSH/agent sessions, headless WindowServer contexts).
+        renderer_kwargs = {"width": 1920, "height": 1080}
+        renderer_kwargs.update(renderer_config)
+        renderer_backend = renderer_kwargs.pop("backend", "pyglet")
         self.renderer = self._traceable_tool(
             tools.resolve("Renderer"),
             "Renderer",
-            width=renderer_config["width"],
-            height=renderer_config["height"],
+            width=renderer_kwargs["width"],
+            height=renderer_kwargs["height"],
+            backend=renderer_backend,
             methods_to_trace=["render"],
         )
 

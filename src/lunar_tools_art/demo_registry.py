@@ -336,11 +336,20 @@ DEMOS = {
             "Whispers",
             "Overheard fragments return as generated whispers drifting through the space.",
             _req(
-                "mic",
-                "camera",
                 "audio-out",
                 "renderer",
-                optional=("afterwords",),
+                optional=("camera", "mic", "afterwords"),
+            ),
+            config_knobs=(
+                ConfigKnob("duration", float, None, "seconds to run before exiting (default: until 'q')"),
+                ConfigKnob("camera_id", int, 0, "webcam device index"),
+                ConfigKnob("video_path", str, None, "recorded clip used as the motion source when no camera exists (looped)"),
+                ConfigKnob("voice", str, None, "Afterwords voice name for whispers"),
+                ConfigKnob("particle_cap", int, 2000, "maximum simultaneous particles (the aura cap)"),
+                ConfigKnob("trail_alpha", float, 0.55, "1.0 = no trails; lower values lengthen the trails"),
+                ConfigKnob("whisper_gap_s", float, 6.0, "minimum quiet seconds between spoken whispers"),
+                ConfigKnob("record_path", str, None, "write the rendered window to this mp4 path"),
+                ConfigKnob("synthetic_motion", bool, False, "force the procedural motion source (no camera/video)"),
             ),
         ),
     ]

@@ -1,0 +1,98 @@
+{
+  "date": "2026-10-18 18:22:16",
+  "steps": [
+    {
+      "step": "aura-building",
+      "t": 10.1,
+      "particles": 608,
+      "hud": false,
+      "motion_overlay": false,
+      "whispers_attempted": 0,
+      "whispers_spoken": 0
+    },
+    {
+      "step": "key h",
+      "t": 11.7,
+      "particles": 704,
+      "hud": false,
+      "motion_overlay": false,
+      "whispers_attempted": 0,
+      "whispers_spoken": 0,
+      "sent": false,
+      "err": "36:49: execution error: System Events got an error: osascript is not allowed to send keystrokes. (1002)"
+    },
+    {
+      "step": "key m",
+      "t": 13.1,
+      "particles": 789,
+      "hud": false,
+      "motion_overlay": false,
+      "whispers_attempted": 0,
+      "whispers_spoken": 0,
+      "sent": false,
+      "err": "36:49: execution error: System Events got an error: osascript is not allowed to send keystrokes. (1002)"
+    },
+    {
+      "step": "key space",
+      "t": 16.3,
+      "particles": 995,
+      "hud": false,
+      "motion_overlay": false,
+      "whispers_attempted": 1,
+      "whispers_spoken": 0,
+      "sent": false,
+      "err": "36:49: execution error: System Events got an error: osascript is not allowed to send keystrokes. (1002)"
+    },
+    {
+      "step": "key c",
+      "t": 17.6,
+      "particles": 1082,
+      "hud": false,
+      "motion_overlay": false,
+      "whispers_attempted": 1,
+      "whispers_spoken": 1,
+      "sent": false,
+      "err": "36:49: execution error: System Events got an error: osascript is not allowed to send keystrokes. (1002)"
+    },
+    {
+      "step": "key h (off)",
+      "t": 19.0,
+      "particles": 1161,
+      "hud": false,
+      "motion_overlay": false,
+      "whispers_attempted": 1,
+      "whispers_spoken": 1,
+      "sent": false,
+      "err": "36:49: execution error: System Events got an error: osascript is not allowed to send keystrokes. (1002)"
+    },
+    {
+      "step": "key q",
+      "t": 19.1,
+      "particles": 1173,
+      "hud": false,
+      "motion_overlay": false,
+      "whispers_attempted": 1,
+      "whispers_spoken": 1,
+      "sent": false,
+      "err": "36:49: execution error: System Events got an error: osascript is not allowed to send keystrokes. (1002)"
+    }
+  ],
+  "summary": {
+    "frames": 682,
+    "fps": 14.3,
+    "source_kind": "video",
+    "whispers_attempted": 3,
+    "whispers_spoken": 3,
+    "last_fatal_error": null
+  },
+  "checks": {
+    "hud_toggled_on": false,
+    "hud_toggled_off": true,
+    "motion_overlay_on": false,
+    "aura_cleared": false,
+    "whisper_fired": true,
+    "whisper_spoken": true,
+    "no_fatal": true,
+    "q_quit": true
+  }
+}

@@ -4,6 +4,7 @@ in-process try/except is not containment. Probes print a one-line summary
 on success and exit 0; any other outcome is a fail with a classification.
 """
 
+import os
 import subprocess  # nosec B404 - probes run fixed snippets via sys.executable
 import sys
 
@@ -80,13 +81,27 @@ def probe_camera():
 
 
 def probe_renderer():
+    """Display probe. Honours the configured renderer backend: pyglet (the
+    default) needs a Cocoa screen, while opencv needs only WindowServer —
+    so SSH/agent sessions can pass with RENDERER__BACKEND=opencv set."""
+    backend = os.environ.get("RENDERER__BACKEND", "").lower() or "pyglet"
+    if backend == "opencv":
+        code = (
+            "import cv2;"
+            "w=cv2.namedWindow('lunar-probe',cv2.WINDOW_NORMAL);"
+            "cv2.destroyAllWindows();print('display available (opencv)')"
+        )
+    else:
+        code = (
+            "import pyglet;"
+            "w=pyglet.window.Window(width=64,height=64,visible=False);"
+            "w.close();print('display available')"
+        )
     return probe_in_subprocess(
-        "import pyglet;"
-        "w=pyglet.window.Window(width=64,height=64,visible=False);"
-        "w.close();print('display available')",
+        code,
         "renderer",
-        "display available",
-        _HW_FIX,
+        f"display available ({backend})",
+        _HW_FIX + ("" if backend == "opencv" else " or set RENDERER__BACKEND=opencv"),
     )
 
 

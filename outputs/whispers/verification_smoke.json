@@ -1,0 +1,16 @@
+{
+  "mode": "smoke",
+  "frames_rendered": 1300,
+  "fps_measured": 107.7,
+  "duration_exit": true,
+  "source_kind": "video",
+  "motion_energy_last": 0.51,
+  "particles_alive_at_end": 1301,
+  "whispers_attempted": 4,
+  "whispers_spoken": 4,
+  "tts_calls": 4,
+  "playback_calls": 4,
+  "playback_nonblocking": true,
+  "last_fatal_error": null,
+  "date": "2026-10-18 18:13:02"
+}

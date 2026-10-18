@@ -49,6 +49,7 @@ class Renderer:
         self.backend = backend
         self.window = None
         self.frames = []  # populated by the null backend (tests/headless)
+        self.last_key = None  # set by the opencv backend each frame
 
         self._pyglet = None
         self._pyglet_image_cls = None
@@ -104,7 +105,19 @@ class Renderer:
 
         bgr = image[:, :, ::-1]
         cv2.imshow("Lunar Tools Art", bgr)
-        cv2.waitKey(1)
+        # Surface the last key pressed in the window so prototypes can be
+        # interactive even when pynput lacks Accessibility trust (terminal
+        # agents, SSH sessions). -1 (no key) clears it, which gives natural
+        # edge-triggering.
+        code = cv2.waitKey(1) & 0xFF
+        if code == 0xFF:
+            self.last_key = None
+        elif code == 32:
+            self.last_key = "space"
+        elif 32 < code < 127:
+            self.last_key = chr(code)
+        else:
+            self.last_key = None
 
     def set_size(self, width, height):
         self.width = width

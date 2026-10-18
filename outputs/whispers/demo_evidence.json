@@ -1,0 +1,90 @@
+{
+  "run": "windowed-demo-final",
+  "date": "2026-10-18 18:24:12",
+  "wall_seconds": 40.61,
+  "frames": 480,
+  "fps_measured": 12.9,
+  "source_kind": "video",
+  "source_detail": "synthetic_reference_720p.mp4 (looped)",
+  "particles_alive_end": 1227,
+  "whispers_attempted": 4,
+  "whispers_spoken": 4,
+  "performance_timeline": [
+    {
+      "t": 8.0,
+      "action": "overlay_on",
+      "particles_before": 480,
+      "particles_after": 480
+    },
+    {
+      "t": 13.0,
+      "action": "overlay_off",
+      "particles_before": 786,
+      "particles_after": 786
+    },
+    {
+      "t": 13.5,
+      "action": "whisper",
+      "particles_before": 808,
+      "particles_after": 808
+    },
+    {
+      "t": 20.0,
+      "action": "clear",
+      "particles_before": 1263,
+      "particles_after": 0
+    },
+    {
+      "t": 27.0,
+      "action": "whisper",
+      "particles_before": 404,
+      "particles_after": 404
+    },
+    {
+      "t": 33.0,
+      "action": "hud_off",
+      "particles_before": 791,
+      "particles_after": 791
+    }
+  ],
+  "whisper_events": [
+    {
+      "text": "Quietly, quietly, the walls lean in.",
+      "voice": "galadriel",
+      "path": "/var/folders/69/dcch481s2rng9qbjlgh70yfw0000gn/T/lunar_tools_5f9c33d5_3y2in81w.wav",
+      "played": true,
+      "error": null,
+      "duration_s": 3.84,
+      "offset_s": 14.6
+    },
+    {
+      "text": "The light remembers you.",
+      "voice": "galadriel",
+      "path": "/var/folders/69/dcch481s2rng9qbjlgh70yfw0000gn/T/lunar_tools_539c9967_wrawq_yc.wav",
+      "played": true,
+      "error": null,
+      "duration_s": 2.0,
+      "offset_s": 16.08
+    },
+    {
+      "text": "Someone was here, just now.",
+      "voice": "galadriel",
+      "path": "/var/folders/69/dcch481s2rng9qbjlgh70yfw0000gn/T/lunar_tools_ada15ea9_czrek11i.wav",
+      "played": true,
+      "error": null,
+      "duration_s": 2.16,
+      "offset_s": 27.99
+    },
+    {
+      "text": "The dust was waiting for exactly this.",
+      "voice": "galadriel",
+      "path": "/var/folders/69/dcch481s2rng9qbjlgh70yfw0000gn/T/lunar_tools_e201f022_yr06pm64.wav",
+      "played": true,
+      "error": null,
+      "duration_s": 2.64,
+      "offset_s": 31.35
+    }
+  ],
+  "last_fatal_error": null,
+  "note": "state changes in this demo are performance-scripted through the same functions the keyboard controls call; this session cannot inject genuine OS keystrokes (no Accessibility trust). Key handling is verified headlessly in tests/test_whispers.py."
+}

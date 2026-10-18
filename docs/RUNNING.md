@@ -150,9 +150,20 @@ Exit codes: `doctor` — 0 pass, 1 a required check failed. `run` — 0 clean,
 ## Passing configuration
 
 ```bash
-python lunar_tools_demo.py run whispers --config duration=5 --config voice=galadriel
-python lunar_tools_demo.py run whispers --config "window_size=(800,600),fps=30"
+python lunar_tools_demo.py run whispers --config duration=30 --config voice=galadriel
+# no camera? feed a recorded clip through the identical motion pipeline:
+python lunar_tools_demo.py run whispers --config duration=30 \
+    --config video_path=outputs/glitch_lab/synthetic_reference_720p.mp4 \
+    --config record_path=outputs/whispers/my_demo.mp4
 ```
+
+Whispers knobs: `duration` (s), `camera_id`, `video_path`, `voice`,
+`particle_cap` (default 2000), `trail_alpha` (1.0 = no trails),
+`whisper_gap_s`, `record_path` (mp4), `synthetic_motion` (force the
+procedural source). On machines where pyglet finds no screen (SSH/agent
+sessions) set `RENDERER__BACKEND=opencv` for the HighGUI window. Controls
+at the window: `c` clear aura, `m` motion overlay, `space` whisper now,
+`h` HUD, `q` quit.
 
 `--config` is repeatable; the single-string comma form also works, and
 tuple values with commas parse correctly. Malformed entries (no `=`) are

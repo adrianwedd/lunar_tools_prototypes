@@ -38,7 +38,9 @@ def test_unknown_demo_exits_4_with_suggestion(capsys):
 
 
 def test_run_preflight_failure_exits_3_without_launching(capsys):
-    fail = {"mic": lambda: CheckResult("mic", "fail", "no mic", "plug one in")}
+    # renderer is a *required* capability for whispers (mic/camera are
+    # optional there), so a failing renderer probe must stop the launch
+    fail = {"renderer": lambda: CheckResult("renderer", "fail", "no display", "plug one in")}
     with (
         mock.patch.object(cli, "_probes_for_test", fail),
         mock.patch.object(cli, "_launch") as launch,

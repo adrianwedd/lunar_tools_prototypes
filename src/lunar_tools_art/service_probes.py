@@ -66,7 +66,8 @@ def probe_llm():
 
 def probe_afterwords():
     url = _get_cfg("afterwords.server_url", "http://localhost:7860")
-    ok, detail = _http_ok(url)
+    # /health is the server's status route; the bare root 404s on FastAPI
+    ok, detail = _http_ok(f"{url.rstrip('/')}/health")
     if not ok:
         return CheckResult(
             "afterwords",

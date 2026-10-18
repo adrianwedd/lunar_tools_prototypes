@@ -42,8 +42,8 @@ def test_synthesize_returns_bytes():
 
 def test_synthesize_with_emotion():
     client = VoiceClient()
-    with patch("httpx.post") as mock_post:
-        mock_post.return_value = MagicMock(
+    with patch("httpx.get") as mock_get:
+        mock_get.return_value = MagicMock(
             status_code=200,
             content=b"RIFF\x00\x00\x00\x00WAVEfmt ",
             headers={"content-type": "audio/wav"},
@@ -52,8 +52,8 @@ def test_synthesize_with_emotion():
             "I understand", voice="viewer-abc", emotion="vulnerable"
         )
         assert isinstance(result, bytes)
-        call_json = mock_post.call_args[1]["json"]
-        assert call_json["emotion"] == "vulnerable"
+        call_params = mock_get.call_args[1]["params"]
+        assert call_params["emotion"] == "vulnerable"
 
 
 def test_clone_voice_returns_result():
@@ -106,15 +106,15 @@ def test_health_returns_none_on_non_200():
 
 def test_synthesize_returns_none_on_non_200():
     client = VoiceClient()
-    with patch("httpx.post") as mock_post:
-        mock_post.return_value = MagicMock(status_code=503, text="warming up")
+    with patch("httpx.get") as mock_get:
+        mock_get.return_value = MagicMock(status_code=503, text="warming up")
         result = client.synthesize("hello", voice="galadriel")
         assert result is None
 
 
 def test_synthesize_returns_none_on_connection_error():
     client = VoiceClient()
-    with patch("httpx.post", side_effect=Exception("Connection refused")):
+    with patch("httpx.get", side_effect=Exception("Connection refused")):
         result = client.synthesize("hello", voice="galadriel")
         assert result is None
 

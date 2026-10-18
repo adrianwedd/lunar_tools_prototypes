@@ -93,7 +93,7 @@ Per-prototype: what `run()`/`update()` actually does, evidence, and honest class
 | 29 | time-shifted-echo-chamber.py | **partially-functional** | Blocks in-loop on `pydub.playback.play(audio_segment)` (:60 — blocking full-clip playback inside main loop, acceptable here since the piece *is* playback, but it can't be interrupted) + 2 s+ record per clip. Import breaks under Python 3.13 (`audioop`, measured). Headless smoke passes because FakePlayer writes silence and `pydub.play` isn't reached in constructor-only style... actually play() is reached? — constructor-only (code-read smoke:84) so never exercised. |
 | 30 | virtual-cloud-chamber.py | **implementation-complete-but-unverified** | Particle sim + once-guarded narration chain (LLM→TTS→blocking play ( :152-153)). Good warn-once disable patterns (:150-160). STT imported but unused? (use list shows speech2text present — decorative; inferred). Same hardware gaps: mic, TTS POST bug. |
 | 31 | virtual_time_travel.py | **stubbed-at-runtime** (MIDI contract break) | `midi_input.get("A0", val_min=0, val_max=len(eras)-1)` (:59-61) → TypeError per frame on real MIDI (measured pattern; this specific call inferred identical). TTS narration guarded properly if text2speech None. dalle3 Issue A. |
-| 32 | whispers.py | **implementation-complete-but-unverified** | zone motion → particles → TTS bursts + blocking `play_sound` (:146, inline). Needs mic/camera/TTS-verb. |
+| 32 | whispers.py | **hardware-verified (video-source)** | motion-diff → vectorised particle aura → background-thread TTS whispers, `blocking=False` playback. Windowed 720p run verified on the Studio (2026-10-18): real cv2 window, 41 s, 4/4 whispers spoken via live Afterwords (galadriel), aura clear verified 1263→0. No camera hardware exists on this machine (system_profiler lists none); motion came from the recorded clip through the identical differencing pipeline. Offline pipeline: **246 fps-equiv @ 2000 particles** (acceptance ≥60). Motion→emission ≤3 frames (headless test). See outputs/whispers/*.json, scripts/verify_whispers.py, scripts/record_whispers_demo.py. |
 
 (31 numbered rows = the 29-prototype contract set plus `seed_surfer.py` and `real_time_glitch_lab.py` #24/#25 which the status docs forgot.)
 
@@ -103,8 +103,8 @@ Over the **29-prototype contract set** (i.e. all prototype modules except `examp
 
 | Class | Count | Members |
 |---|---|---|
-| hardware-verified | **0** | — (matches the doc's honest `no` column; not disputed) |
-| implementation-complete-but-unverified | **11** | ai-fashion-show-prototype, audio-reactive-fractal-forest, cosmic-soundscape, data-driven-cityscape, emotional-landscape-generator-prototype, generative-poetry-mosaic, interactive-storytelling-canvas-prototype, speech_activated_art, temporal-art-gallery-prototype, virtual-cloud-chamber, whispers |
+| hardware-verified | **1** | whispers (video-source variant; see row 32) |
+| implementation-complete-but-unverified | **10** | ai-fashion-show-prototype, audio-reactive-fractal-forest, cosmic-soundscape, data-driven-cityscape, emotional-landscape-generator-prototype, generative-poetry-mosaic, interactive-storytelling-canvas-prototype, speech_activated_art, temporal-art-gallery-prototype, virtual-cloud-chamber |
 | partially-functional | **13** | acoustic-fingerprint-painter, ai-dream-interpreter-prototype, ai-mirror-of-truth, apocalypse_experience, audio_mirror, collaborative_art, collaborative-canvas, dynamic_visuals, escape_room, neural-transfer-music-visualizer, real-time-glitch-art-lab (legacy), sentiment_analysis_display, time-shifted-echo-chamber |
 | stubbed (or stubbed-at-runtime) | **5** | augmented_audio_tours (vision path), chat-room-narrative-quilt (chat transport commented out), evolving-cosmic-mural-prototype (MIDI contract), interactive_storytelling (`run()` is `pass`), virtual_time_travel (MIDI contract) |
 | concept-only | **0** | — |
