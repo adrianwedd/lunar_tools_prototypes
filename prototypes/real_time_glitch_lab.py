@@ -78,7 +78,7 @@ class RealTimeGlitchArtLab:
         for key, glitch in KEY_TO_GLITCH.items():
             if self.keyboard.is_key_pressed(key):
                 self.glitch_type = glitch
-                self.logger.info(f"Glitch family: {glitch}")
+                self.logger.info(f"Glitch family: {glitch} (key {key})")
         if self.keyboard.is_key_pressed("up"):
             self.intensity = min(1.0, self.intensity + 0.1)
             self.logger.info(f"Intensity: {self.intensity:.2f}")

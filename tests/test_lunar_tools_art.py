@@ -342,17 +342,24 @@ def test_data_driven_cityscape_smoke_test():
             pytest.fail(f"DataDrivenCityscape.run() raised an exception: {e}")
 
 
-# Smoke test for real-time-glitch-art-lab.py
+# Smoke test for real_time_glitch_lab.py (the rewritten, registry-registered
+# installation; the legacy real-time-glitch-art-lab.py file is superseded)
 def test_real_time_glitch_art_lab_smoke_test():
     module = _load_prototype_module(
-        "real-time-glitch-art-lab.py", "real_time_glitch_art_lab"
+        "real_time_glitch_lab.py", "real_time_glitch_lab"
     )
     RealTimeGlitchArtLab = module.RealTimeGlitchArtLab
 
     manager = Manager()
+    # The rewritten loop polls q first each frame, then its control keys
+    # (1-4, up, down, space = 7 more) before exiting on the second q press:
+    # two full frames of polls.
+    _PER_FRAME = 8
+    manager.keyboard_input.is_key_pressed = MagicMock(
+        side_effect=[False] * _PER_FRAME + [True] + [False] * (_PER_FRAME - 1)
+    )
     lab = RealTimeGlitchArtLab(manager)
     try:
-        manager.keyboard_input.is_key_pressed = MagicMock(side_effect=[False, True])
         lab.run()
     except Exception as e:
         pytest.fail(f"RealTimeGlitchArtLab.run() raised an exception: {e}")

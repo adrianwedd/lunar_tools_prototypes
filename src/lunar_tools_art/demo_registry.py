@@ -247,10 +247,31 @@ DEMOS = {
         ),
         Demo(
             "real-time-glitch-art-lab",
-            "real-time-glitch-art-lab",
+            "real_time_glitch_lab",
             "RealTimeGlitchArtLab",
-            "Streams live camera frames through a glitch corruption pipeline.",
-            _req("camera", "renderer", optional=("llm",)),
+            "Live webcam glitch installation: vectorised glitch families at 720p, "
+            "capture thread + main-thread render, keyboard/MIDI controls.",
+            _req(
+                "camera",
+                "renderer",
+                optional=(
+                    "llm",
+                    "midi",
+                ),
+            ),
+        ),
+        Demo(
+            "seed-surfer",
+            "seed_surfer",
+            "SeedSurfer",
+            "Surf a fixed prompt's seed space with a dial/keyboard; instant "
+            "cached navigation, bounded latest-wins local mflux generation "
+            "with adjacent-seed prefetch and full metadata.",
+            _req(
+                "renderer",
+                "image-gen",
+                optional=("midi",),
+            ),
         ),
         Demo(
             "sentiment-analysis-display",
