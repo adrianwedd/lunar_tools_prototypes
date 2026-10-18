@@ -81,6 +81,38 @@ The windowed path (`pyglet`) needs a GUI login session; an SSH/agent shell
 has no WindowServer screens and `doctor`'s `renderer` probe will fail with
 `IndexError: list index out of range`.
 
+## Speech to text (local, file input, no microphone)
+
+Default backend is `mlx-whisper` with `base.en` (`settings.toml [whisper]`).
+The MLX weights live in the Hugging Face cache
+(`mlx-community/whisper-base.en-mlx`, 143 MB — downloaded once). Transcribe a
+file straight from the terminal:
+
+```bash
+env -u PYTHONPATH ./env/bin/python scripts/transcribe_file.py \
+  tests/fixtures/speech_quick_brown_fox.wav
+# backend : mlx-whisper / base.en
+# language: en  confidence: 0.722
+# latency : 0.95s
+# text    : the quick brown fox jumps over the lazy dog.
+```
+
+`--json` emits machine-readable output; `--backend`/`--model` override the
+configured pair. Measured on the M5 Ultra with the committed pangram fixture
+(2.67 s, 16 kHz mono): first call in a process ~0.95 s (weights load), warm
+calls ~55 ms. The cold figure including the one-time download is ~67 s.
+
+Opt-in real test (skipped by default so CI needs no model):
+
+```bash
+LUNAR_REAL_STT=1 env -u PYTHONPATH ./env/bin/python -m pytest -q tests/test_stt_real.py
+```
+
+Note: `faster-whisper` 1.2.1 is currently incompatible with the installed
+PyAV 19 (`av.open() got an unexpected keyword argument 'metadata_errors'`),
+so use the default `mlx-whisper` backend. Microphone capture is still a
+hardware/permission problem, separate from file transcription.
+
 ## Reading the `list` output
 
 - `●` works / `◐` degraded — **headless smoke status**: the prototype

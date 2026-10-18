@@ -92,7 +92,34 @@ prototypes outside the 13 listed in #35.
 - Interactive mflux generation pacing on the real 512 px backend (standalone
   mflux timings remain in `docs/evidence/seed_surfer_verification.json`).
 
-## Not attempted
+## Stretch — STT (#33)
 
-Stretch goal #33 (STT backend) — priorities A–C were completed first; no
-model download was made.
+The issue's original blocker is stale: `mlx-whisper 0.4.3`, `faster-whisper
+1.2.1` and `av 19.0.1` are all importable in `env/`. No code change was needed
+to the STT layer.
+
+Verified with `mlx-whisper` + `base.en` (configured default) on a committed,
+non-sensitive fixture (`tests/fixtures/speech_quick_brown_fox.wav`, 2.67 s,
+16 kHz mono, rendered locally with `say`):
+
+```
+text       : "the quick brown fox jumps over the lazy dog."
+language   : en
+confidence : 0.722
+cold       : 67.08 s  (includes 143 MB one-time model download)
+first call :  0.95 s  (weights load, warm cache)
+warm       :  0.055 s median over 5 calls
+```
+
+A second, different sentence transcribed correctly ("Lunar tools make the
+instruments playable again.", confidence 0.676) to rule out a cached result.
+
+New: `scripts/transcribe_file.py` (documented in `docs/RUNNING.md`),
+`tests/test_stt_real.py` (opt-in, `LUNAR_REAL_STT=1`).
+
+`faster-whisper` remains unusable in this env: faster-whisper 1.2.1 calls
+`av.open(..., metadata_errors="ignore")`, which PyAV 19 removed. Left as a
+documented incompatibility rather than downgrading PyAV; the default backend
+works.
+
+**Not verified:** microphone capture and live voice-driven loops.

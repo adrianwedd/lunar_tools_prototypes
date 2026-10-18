@@ -39,6 +39,9 @@ venv/
 *.m4a
 *.flac
 
+# Committed, synthetic test fixtures (kept deliberately small)
+!tests/fixtures/*.wav
+
 # Temporary files
 temp_*.py
 temp_*.wav
