@@ -60,16 +60,18 @@ class SeedScheduler:
         generate,  # callable(prompt, size, seed) -> (png_path, metadata)
         cache_index_path: Path,
         on_success=None,  # callable(job_result_dict) posted from worker thread
+        on_error=None,  # callable(prompt, size, seed, exc) posted from worker thread
         prefetch_radius: int = 1,
         identity=None,  # dict or callable()->dict describing the generator
     ):
         self._generate = generate
         self._cache_index_path = Path(cache_index_path)
         self._on_success = on_success
+        self._on_error = on_error
         self._prefetch_radius = prefetch_radius
         self._identity = identity
 
-        self._lock = threading.Lock()
+        self._lock = threading.RLock()  # re-entrant: helpers nest under request()
         self._pending: Job | None = None  # at most one queued user job
         self._prefetch_pending: Job | None = None  # at most one queued prefetch
         self._inflight: Job | None = None
@@ -131,34 +133,107 @@ class SeedScheduler:
     def cached_entry(self, prompt, size, seed):
         return self.index["entries"].get(self.cache_key(prompt, size, seed))
 
+    def _is_cached(self, key) -> bool:
+        """True when an index entry exists AND its PNG is still on disk."""
+        entry = self.index["entries"].get(self.cache_key(*key))
+        if not entry:
+            return False
+        try:
+            return Path(entry["path"]).exists()
+        except (OSError, TypeError):
+            return False
+
+    def status(self) -> dict:
+        """Snapshot of the queues, for UI indication and tests."""
+        with self._lock:
+            return {
+                "desired_seed": self._desired[2] if self._desired else None,
+                "inflight_seed": self._inflight.seed if self._inflight else None,
+                "pending_seed": self._pending.seed if self._pending else None,
+                "prefetch_seed": (
+                    self._prefetch_pending.seed if self._prefetch_pending else None
+                ),
+                "completed": self.completed,
+                "errors": self.errors,
+                "discarded_stale": self.discarded_stale,
+            }
+
     # -- public API ----------------------------------------------------------
 
     def request(self, prompt, size, seed, priority=0):
-        """User navigation request. Supersedes any queued request."""
-        job = Job(prompt, size, seed, priority, self._next_seq())
+        """User navigation request. Supersedes any queued request.
+
+        Idempotent: a key that is already cached, already queued, or already
+        being generated returns immediately without scheduling another job.
+        The interaction loop calls this every frame (~20 Hz); without this
+        dedup the same seed would be regenerated once per completed job.
+        """
+        size = tuple(size)
+        key = (prompt, size, seed)
         with self._lock:
-            superseded = self._pending
-            self._pending = job
-            # Drop an equal prefetch (a queued prefetch for the same key is
-            # now redundant: the user job covers it).
-            if self._prefetch_pending and self._prefetch_pending.key == job.key:
-                self._prefetch_pending = None
-            self._desired = job.key
-            if superseded is not None and not superseded.cancelled:
-                superseded.cancelled = True
+            if self._is_cached(key):
+                # Nothing left to generate; the loop will load it from cache.
+                if self._desired == key:
+                    self._desired = None
+                return None
+
+            inflight = self._inflight
+            if inflight is not None and inflight.key == key:
+                # Exactly what the user wants is already rendering: drop any
+                # queued request that this one superseded.
+                superseded, self._pending = self._pending, None
+                if superseded is not None and not superseded.cancelled:
+                    superseded.cancelled = True
+                    self.cancelled_count += 1
+                self._prefetch_pending = None if self._same_key(
+                    self._prefetch_pending, key
+                ) else self._prefetch_pending
+                self._desired = key
+                return inflight
+
+            pending = self._pending
+            if pending is not None and pending.key == key:
+                self._desired = key
+                return pending
+
+            job = Job(prompt, size, seed, priority, self._next_seq_locked())
+            if pending is not None and not pending.cancelled:
+                pending.cancelled = True
                 self.cancelled_count += 1
+            self._pending = job
+            if self._same_key(self._prefetch_pending, key):
+                self._prefetch_pending = None
+            self._desired = key
         self._wake.set()
         return job
 
+    @staticmethod
+    def _same_key(job, key) -> bool:
+        return job is not None and job.key == key
+
     def request_prefetch(self, prompt, size, seed):
         """Lower-priority exploration of neighbouring seeds. Never displaces
-        a user request."""
-        if self.cached_entry(prompt, size, seed) is not None:
-            return None  # already cached; nothing to do
-        job = Job(prompt, size, seed, priority=10, seq=self._next_seq())
+        a user request, and never runs while the user is waiting on one."""
+        size = tuple(size)
+        key = (prompt, size, seed)
         with self._lock:
-            if self._prefetch_pending is None:
-                self._prefetch_pending = job
+            if self._is_cached(key):
+                return None
+            if self._desired is not None:
+                return None  # user target outstanding: prefetch must not jump it
+            if self._same_key(self._prefetch_pending, key):
+                return self._prefetch_pending
+            inflight = self._inflight
+            if inflight is not None and inflight.key == key:
+                return inflight
+            if self._prefetch_pending is not None:
+                # One prefetch slot, and no churn: if a different neighbour is
+                # already queued, let it run before replacing it. The loop asks
+                # for both neighbours every frame, so replace-wins here would
+                # oscillate and starve one of them.
+                return None
+            job = Job(prompt, size, seed, priority=10, seq=self._next_seq_locked())
+            self._prefetch_pending = job
         self._wake.set()
         return job
 
@@ -190,8 +265,12 @@ class SeedScheduler:
 
     def _next_seq(self):
         with self._lock:
-            self._seq += 1
-            return self._seq
+            return self._next_seq_locked()
+
+    def _next_seq_locked(self):
+        """Caller already holds ``_lock``."""
+        self._seq += 1
+        return self._seq
 
     def _claim_job(self):
         """Pick the next job to run: user job > prefetch job > None."""
@@ -201,10 +280,14 @@ class SeedScheduler:
                 self._pending = None
                 self._inflight = job
                 return job
+            if self._desired is not None:
+                # The visitor is waiting on the in-flight user job; starting
+                # a prefetch here would add seconds to the next navigation.
+                return None
             job = self._prefetch_pending
             if job is not None:
                 self._prefetch_pending = None
-                if self.cached_entry(job.prompt, job.size, job.seed) is None:
+                if not self._is_cached(job.key):
                     self._inflight = job
                     return job
         return None
@@ -268,8 +351,22 @@ class SeedScheduler:
                 logger.error(f"Seed generation failed (seed={job.seed}): {e}")
                 with self._lock:
                     self._inflight = None
+                    if self._desired == job.key:
+                        # Do not keep a failed key as "desired": that would
+                        # suppress prefetch indefinitely.
+                        self._desired = None
+                if self._on_error is not None:
+                    try:
+                        self._on_error(job.prompt, job.size, job.seed, e)
+                    except Exception:
+                        logger.exception("on_error callback raised")
 
     def _record(self, prompt, size, seed, png_path, metadata):
+        png = Path(png_path)
+        if not png.exists() or png.stat().st_size == 0:
+            # Never index a path that cannot be displayed: a backend that
+            # "succeeds" without writing a PNG is a failure, not a cache hit.
+            raise FileNotFoundError(f"generator returned missing/empty image: {png}")
         key = self.cache_key(prompt, size, seed)
         identity = self.identity()
         entry = {
