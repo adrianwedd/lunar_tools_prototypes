@@ -1,14 +1,15 @@
 # Studio Capability Report — status
 
-**Last checked:** 2026-10-18 15:30 AEDT
+**Last checked:** 2026-10-18 16:06 AEDT
 **Owner:** Hermes delegation `deleg_87a2e156`, task 2 (goal: "Establish and document
 the REAL Studio capability for interactive AI-art" on the M5 Ultra / 256 GB).
 
 ## Verdict
 
 **Not delivered.** `docs/STUDIO_CAPABILITY.md` does not exist in this repository.
-The delegated agent is still running and, at the time of writing, is blocked in a
-polling loop around a Hugging Face weight download that had stalled.
+The delegated agent is still running (last activity 16:04) and has not written the
+report. Its earlier blocking download has since been completed by this session,
+so it may now finish.
 
 ## Evidence
 
