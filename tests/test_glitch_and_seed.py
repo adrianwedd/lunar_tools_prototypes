@@ -282,7 +282,10 @@ def test_scheduler_persists_metadata_index(tmp_path):
         s.request("a prompt", (64, 64), 42)
         s.wait_for("a prompt", (64, 64), 42, timeout=5)
         idx = json.loads((tmp_path / "index.json").read_text())
-        e = idx["entries"]["a prompt|64x64|42"]
+        e = idx["entries"][s.cache_key("a prompt", (64, 64), 42)]
+        assert e["metadata"]["seed"] == 42
+        assert idx["version"] == 2
+        assert "identity_key" in e
         md = e["metadata"]
         assert md["seed"] == 42 and md["prompt"] == "a prompt"
         assert "latency_s" in md and "generated_at" in md

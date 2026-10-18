@@ -7,9 +7,37 @@ when called from any other thread — background work must post frames via
 """
 
 import logging
+import os
 import threading
 
 logger = logging.getLogger(__name__)
+
+
+def _as_rgb_array(image):
+    """Coerce a renderable input to an HxWx3 uint8 RGB array.
+
+    Some legacy prototypes still hand the unified image generator's output
+    (a PNG path) straight to the renderer, and others pass PIL images. Both
+    used to crash on the real pyglet/opencv backends while the headless null
+    backend silently accepted them. Decoding here makes the renderer's
+    contract explicit: it only ever draws decoded RGB frames.
+    """
+    if isinstance(image, (str, bytes, os.PathLike)):
+        import cv2
+        import numpy as np
+
+        bgr = cv2.imread(os.fspath(image), cv2.IMREAD_COLOR)
+        if bgr is None:
+            raise ValueError(f"Renderer could not decode image path: {image!r}")
+        return bgr[..., ::-1]
+
+    if hasattr(image, "convert") and hasattr(image, "mode") and hasattr(image, "size"):
+        # PIL.Image.Image
+        import numpy as np
+
+        return np.asarray(image.convert("RGB"))
+
+    return image
 
 
 class Renderer:
@@ -42,6 +70,8 @@ class Renderer:
                 "Renderer.render() must be called from the main thread; "
                 "post to manager.main_queue from background threads instead."
             )
+
+        image = _as_rgb_array(image)
 
         if self.backend == "null":
             self.frames.append(image)

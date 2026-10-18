@@ -64,6 +64,7 @@ class SeedSurfer:
         self.scheduler = SeedScheduler(
             self._generate,
             cache_index_path=self.image_dir / "index.json",
+            identity=self.gen.identity,
         )
         self._current_view = None  # (seed, np_frame)
         self._pending_seed_announce = None
@@ -115,11 +116,17 @@ class SeedSurfer:
                 data = json.loads(FAVOURITES_PATH.read_text())
             except Exception:
                 pass
+        entry = self.scheduler.cached_entry(self.prompt, self.size, self.seed)
         data.append(
             {
                 "seed": self.seed,
                 "prompt": self.prompt,
                 "size": list(self.size),
+                "identity": self.scheduler.identity(),
+                "identity_key": self.scheduler.identity_key(),
+                "cache_key": self.scheduler.cache_key(self.prompt, self.size, self.seed),
+                "image_path": entry.get("path") if entry else None,
+                "metadata": entry.get("metadata") if entry else None,
                 "saved_at": time.time(),
             }
         )

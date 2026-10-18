@@ -34,6 +34,7 @@ class CameraState:
     CONNECTING = "connecting"
     NO_CAMERA = "no_camera"
     LOST = "lost"
+    ENDED = "ended"  # recorded-video replay reached EOF (not a hardware state)
 
 
 class CameraCaptureThread:
@@ -50,12 +51,14 @@ class CameraCaptureThread:
         self._webcam = webcam
         self._poll_interval = poll_interval
         self._lock = threading.Lock()
+        self._cond = threading.Condition(self._lock)
         self._latest: np.ndarray | None = None
         self._frame_ts = 0.0
         self._state = CameraState.CONNECTING
         self._last_fail = 0.0
         self._stop = threading.Event()
         self._thread: threading.Thread | None = None
+        self.frames_delivered = 0
 
     # -- public API -------------------------------------------------------
 
@@ -63,6 +66,15 @@ class CameraCaptureThread:
     def state(self) -> str:
         with self._lock:
             return self._state
+
+    def wait_for_new(self, last_count: int, timeout: float = 0.05) -> bool:
+        """Block until a frame newer than ``last_count`` exists (or state changes)."""
+        with self._cond:
+            return self._cond.wait_for(
+                lambda: self.frames_delivered != last_count
+                or self._state != CameraState.CONNECTED,
+                timeout=timeout,
+            )
 
     def latest_frame(self):
         """Return ``(frame_or_None, age_seconds, state)`` atomically."""
@@ -97,19 +109,22 @@ class CameraCaptureThread:
                 logger.warning(f"Camera get_img raised: {e}")
                 frame = None
 
-            with self._lock:
+            with self._cond:
                 if frame is not None:
                     self._latest = frame
                     self._frame_ts = time.time()
+                    self.frames_delivered += 1
                     if self._state != CameraState.CONNECTED:
                         logger.info("Camera connected.")
                     self._state = CameraState.CONNECTED
+                    self._cond.notify_all()
                 else:
                     if self._state == CameraState.CONNECTED:
                         self._state = CameraState.LOST
                         logger.warning("Camera lost; attempting periodic reconnect.")
                     elif self._state in (CameraState.CONNECTING, CameraState.LOST):
                         self._state = CameraState.NO_CAMERA
+                    self._cond.notify_all()
 
             if frame is None:
                 # Back off briefly before hammering a dead device. The raw
@@ -118,6 +133,106 @@ class CameraCaptureThread:
                 time.sleep(self.RETRY_COOLDOWN_S)
             elif self._poll_interval:
                 time.sleep(self._poll_interval)
+
+
+class VideoFileCapture:
+    """Replay a recorded video through the same contract as a live camera.
+
+    This is a *demonstration and verification* path, never a substitute for
+    hardware verification: frames come from disk, so it cannot prove the
+    camera, TCC permission or cable work. It exists so the transform/render
+    pipeline can be exercised honestly when macOS denies camera capture.
+    """
+
+    def __init__(self, path, target_fps: float = 30.0, loop: bool = False):
+        self.path = str(path)
+        self.target_fps = max(1.0, float(target_fps))
+        self.loop = loop
+        self._lock = threading.Lock()
+        self._cond = threading.Condition(self._lock)
+        self._latest: np.ndarray | None = None
+        self._frame_ts = 0.0
+        self._state = CameraState.CONNECTING
+        self._stop = threading.Event()
+        self._thread: threading.Thread | None = None
+        self.frames_delivered = 0
+
+    @property
+    def state(self) -> str:
+        with self._lock:
+            return self._state
+
+    def wait_for_new(self, last_count: int, timeout: float = 0.05) -> bool:
+        with self._cond:
+            return self._cond.wait_for(
+                lambda: self.frames_delivered != last_count
+                or self._state != CameraState.CONNECTED,
+                timeout=timeout,
+            )
+
+    def latest_frame(self):
+        with self._lock:
+            return (
+                self._latest,
+                time.time() - self._frame_ts if self._latest is not None else None,
+                self._state,
+            )
+
+    def start(self):
+        if self._thread is None:
+            self._thread = threading.Thread(
+                target=self._run, name="glitch-video", daemon=True
+            )
+            self._thread.start()
+
+    def stop(self):
+        self._stop.set()
+
+    def join(self, timeout: float = 2.0):
+        if self._thread is not None:
+            self._thread.join(timeout)
+
+    def _set_state(self, state):
+        with self._cond:
+            self._state = state
+            self._cond.notify_all()
+
+    def _run(self):
+        import cv2
+
+        cap = cv2.VideoCapture(self.path)
+        if not cap.isOpened():
+            logger.error(f"VideoFileCapture could not open {self.path}")
+            self._set_state(CameraState.NO_CAMERA)
+            return
+        self._set_state(CameraState.CONNECTED)
+        interval = 1.0 / self.target_fps
+        next_due = time.perf_counter()
+        try:
+            while not self._stop.is_set():
+                ok, bgr = cap.read()
+                if not ok or bgr is None:
+                    if self.loop:
+                        cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+                        continue
+                    logger.info("Recorded video reached EOF.")
+                    self._set_state(CameraState.ENDED)
+                    break
+                # Deadline pacing with sub-millisecond sleeps: macOS inflates
+                # longer sleeps (33 ms can take 160 ms under timer coalescing),
+                # which would silently cap the installation at ~6 fps.
+                now = time.perf_counter()
+                while now < next_due:
+                    time.sleep(0.001)
+                    now = time.perf_counter()
+                with self._cond:
+                    self._latest = bgr[..., ::-1]
+                    self._frame_ts = time.time()
+                    self.frames_delivered += 1
+                    self._cond.notify_all()
+                next_due += interval
+        finally:
+            cap.release()
 
 
 class GlitchPipeline:

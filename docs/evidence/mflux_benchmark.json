@@ -1,0 +1,116 @@
+{
+  "generated_at": 1792299467.521583,
+  "machine": "Apple M5 Ultra 256 GB, macOS 27.0.1",
+  "model": {
+    "backend": "mflux",
+    "model": "schnell",
+    "model_repo": "local:HF_CACHE/snapshots/741f7c3ce8b383c54771c7003378a50191e9efe9",
+    "model_revision": "741f7c3ce8b383c54771c7003378a50191e9efe9",
+    "quantize": 4,
+    "num_inference_steps": 4,
+    "guidance": 4.0
+  },
+  "prompt": "A vast cosmic scene with galaxies, nebulae and stars, painterly",
+  "records": [
+    {
+      "size": [
+        512,
+        512
+      ],
+      "run": 0,
+      "phase": "cold",
+      "seed": 1001,
+      "wall_s": 2.731,
+      "adapter_latency_s": 2.731,
+      "bytes": 517360,
+      "sha256": "5d9b346d88cd3323c9abb10073728e58aee0bbc1c444c1cdcb9bd84dc388351d",
+      "path": "outputs/benchmarks/lunar_tools_abe52c76_t7j3itnd.png",
+      "identity_key": "37758e17e8b2",
+      "peak_mlx_memory_gb": 13.15
+    },
+    {
+      "size": [
+        512,
+        512
+      ],
+      "run": 1,
+      "phase": "warm",
+      "seed": 1002,
+      "wall_s": 1.647,
+      "adapter_latency_s": 1.647,
+      "bytes": 539937,
+      "sha256": "754de9254924d62b65d78722899872bc68765efb9ede6ac2d4e0b7e16829620a",
+      "path": "outputs/benchmarks/lunar_tools_f3ed86f0_5u0e4gxq.png",
+      "identity_key": "37758e17e8b2",
+      "peak_mlx_memory_gb": 13.42
+    },
+    {
+      "size": [
+        512,
+        512
+      ],
+      "run": 2,
+      "phase": "warm",
+      "seed": 1003,
+      "wall_s": 1.642,
+      "adapter_latency_s": 1.642,
+      "bytes": 509816,
+      "sha256": "5183a4eb0fc024c9b7d17b8fc9d3c9b543ca30a75ca99546d7e8ae0ff69b89b6",
+      "path": "outputs/benchmarks/lunar_tools_17816e1b__iml77uc.png",
+      "identity_key": "37758e17e8b2",
+      "peak_mlx_memory_gb": 13.42
+    },
+    {
+      "size": [
+        1024,
+        1024
+      ],
+      "run": 0,
+      "phase": "warm",
+      "seed": 1004,
+      "wall_s": 6.002,
+      "adapter_latency_s": 6.002,
+      "bytes": 2103737,
+      "sha256": "d98d4384f60edc8df9f5dd86a617cf0c65fa8e69f338c4f8eeba64d3208ca30e",
+      "path": "outputs/benchmarks/lunar_tools_47992974_vhmhxqed.png",
+      "identity_key": "37758e17e8b2",
+      "peak_mlx_memory_gb": 21.84
+    },
+    {
+      "size": [
+        1024,
+        1024
+      ],
+      "run": 1,
+      "phase": "warm",
+      "seed": 1005,
+      "wall_s": 5.818,
+      "adapter_latency_s": 5.818,
+      "bytes": 1875315,
+      "sha256": "820c108e89f38d1862c155fd3cc43b96fe330fe7b2294a994db9e91e80b72e8f",
+      "path": "outputs/benchmarks/lunar_tools_32b4ae3e_8kajg_mq.png",
+      "identity_key": "37758e17e8b2",
+      "peak_mlx_memory_gb": 21.84
+    },
+    {
+      "size": [
+        1024,
+        1024
+      ],
+      "run": 2,
+      "phase": "warm",
+      "seed": 1006,
+      "wall_s": 5.842,
+      "adapter_latency_s": 5.842,
+      "bytes": 1941861,
+      "sha256": "f12894aacbb7468b8a76e5fb8f8dbac8fabdd966523c2d6b90837e3d8d7c6303",
+      "path": "outputs/benchmarks/lunar_tools_8804597c_3juukn2k.png",
+      "identity_key": "37758e17e8b2",
+      "peak_mlx_memory_gb": 21.84
+    }
+  ],
+  "warm_mean_s": {
+    "512": 1.644,
+    "1024": 5.887
+  }
+}

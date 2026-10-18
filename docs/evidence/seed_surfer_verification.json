@@ -1,0 +1,76 @@
+{
+  "generated_at": 1792299585.821339,
+  "prompt": "A vast cosmic scene with galaxies, nebulae and stars, painterly",
+  "size": [
+    512,
+    512
+  ],
+  "steps": 4,
+  "identity": {
+    "backend": "mflux",
+    "model": "schnell",
+    "model_repo": "local:HF_CACHE/snapshots/741f7c3ce8b383c54771c7003378a50191e9efe9",
+    "model_revision": "741f7c3ce8b383c54771c7003378a50191e9efe9",
+    "quantize": 4,
+    "num_inference_steps": 4,
+    "guidance": 4.0
+  },
+  "identity_key": "37758e17e8b2",
+  "results": [
+    {
+      "seed": 42,
+      "path": "outputs/seed_surfer/images/lunar_tools_a5455ad3_hqxz8pi3.png",
+      "latency_s": 2.756,
+      "sha256": "ae665f24d1b352e1b7003d662d6fcb4ae54a7e3465150798362009eab6a133ca",
+      "bytes": 502649,
+      "identity_key": "37758e17e8b2"
+    },
+    {
+      "seed": 43,
+      "path": "outputs/seed_surfer/images/lunar_tools_6f38264e_kbfmrnjf.png",
+      "latency_s": 1.66,
+      "sha256": "dce9dd037807cbe3f3143ff14e5a280518c3d1178e401f6d7267638f6f311a39",
+      "bytes": 518293,
+      "identity_key": "37758e17e8b2"
+    },
+    {
+      "seed": 44,
+      "path": "outputs/seed_surfer/images/lunar_tools_9698ea95_6g6t8h78.png",
+      "latency_s": 1.701,
+      "sha256": "203a3027860b00b1d7639cdd413dd4c05a24ffeecd89d28aad07f0e103882752",
+      "bytes": 550196,
+      "identity_key": "37758e17e8b2"
+    },
+    {
+      "seed": 45,
+      "path": "outputs/seed_surfer/images/lunar_tools_60a7bad3_oywlg_6v.png",
+      "latency_s": 1.726,
+      "sha256": "e0d1f2163b0bc05c5ebdcb2e77d3983d95cbc3a898c10ebd86e2f21af6c41c4c",
+      "bytes": 516866,
+      "identity_key": "37758e17e8b2"
+    }
+  ],
+  "distinct_images": true,
+  "cache_hit": {
+    "entry_path": "outputs/seed_surfer/images/lunar_tools_a5455ad3_hqxz8pi3.png",
+    "lookup_s": 1.0013580322265625e-05
+  },
+  "identity_guard": {
+    "cached_entry_after_revision_change": null,
+    "stale_cache_blocked": true
+  },
+  "favourite_records_identity": true,
+  "bounded_scheduling": {
+    "requests": 8,
+    "generations": 1,
+    "last_seed_delivered": 149,
+    "cancelled": 7,
+    "bounded_ok": true
+  },
+  "controls": {
+    "seed_before": 42,
+    "seed_after": 52,
+    "changed": true,
+    "handler_latency_ms": 0.36
+  }
+}

@@ -26,6 +26,7 @@ Deterministic tests use a fake ``generate`` callable; no ML inference.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import threading
@@ -60,11 +61,13 @@ class SeedScheduler:
         cache_index_path: Path,
         on_success=None,  # callable(job_result_dict) posted from worker thread
         prefetch_radius: int = 1,
+        identity=None,  # dict or callable()->dict describing the generator
     ):
         self._generate = generate
         self._cache_index_path = Path(cache_index_path)
         self._on_success = on_success
         self._prefetch_radius = prefetch_radius
+        self._identity = identity
 
         self._lock = threading.Lock()
         self._pending: Job | None = None  # at most one queued user job
@@ -83,18 +86,50 @@ class SeedScheduler:
         self.cancelled_count = 0
         self.errors = 0
 
+    # -- cache identity -----------------------------------------------------
+
+    def identity(self) -> dict | None:
+        """Resolve the generator identity (dict or zero-arg callable)."""
+        ident = self._identity
+        if callable(ident):
+            try:
+                ident = ident()
+            except Exception as e:
+                logger.warning(f"Cache identity resolution failed: {e}")
+                return None
+        return ident
+
+    def identity_key(self) -> str:
+        ident = self.identity()
+        if not ident:
+            return "noidentity"
+        blob = json.dumps(ident, sort_keys=True, separators=(",", ":"), default=str)
+        return hashlib.sha256(blob.encode("utf-8")).hexdigest()[:12]
+
+    def cache_key(self, prompt, size, seed) -> str:
+        """Prompt+size+seed is not enough: model/revision/settings must match.
+
+        Without the identity suffix a cached image rendered by another model
+        (or another revision of the same model) would be served as if it were
+        the current model's output.
+        """
+        return f"{prompt}|{size[0]}x{size[1]}|{seed}|{self.identity_key()}"
+
     # -- index persistence --------------------------------------------------
 
     def _load_index(self):
         if self._cache_index_path.exists():
             try:
-                return json.loads(self._cache_index_path.read_text())
+                index = json.loads(self._cache_index_path.read_text())
+                index.setdefault("entries", {})
+                index["version"] = 2
+                return index
             except Exception as e:
                 logger.warning(f"Corrupt cache index {self._cache_index_path}: {e}")
-        return {"entries": {}, "version": 1}
+        return {"entries": {}, "version": 2}
 
     def cached_entry(self, prompt, size, seed):
-        return self.index["entries"].get(f"{prompt}|{size[0]}x{size[1]}|{seed}")
+        return self.index["entries"].get(self.cache_key(prompt, size, seed))
 
     # -- public API ----------------------------------------------------------
 
@@ -235,8 +270,15 @@ class SeedScheduler:
                     self._inflight = None
 
     def _record(self, prompt, size, seed, png_path, metadata):
-        key = f"{prompt}|{size[0]}x{size[1]}|{seed}"
-        entry = {"path": str(png_path), "metadata": metadata}
+        key = self.cache_key(prompt, size, seed)
+        identity = self.identity()
+        entry = {
+            "path": str(png_path),
+            "metadata": metadata,
+            "identity": identity,
+            "identity_key": self.identity_key(),
+            "cache_key": key,
+        }
         with self._lock:
             self.index["entries"][key] = entry
             data = self.index

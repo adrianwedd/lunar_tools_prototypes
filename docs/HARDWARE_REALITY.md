@@ -212,3 +212,99 @@ Honorable mentions: LLM model defaults not installed (404 → None → AI half s
 
 - Counted set: 31 prototype module files; the 29-prototype contract set classifies as — **hardware-verified 0, implementation-complete-but-unverified 11, partially-functional 13, stubbed 5, concept-only 0**; plus 2 undocumented-but-implemented (`real_time_glitch_lab`, `seed_surfer`) both implementation-complete-but-unverified and absent from the registry/status docs.
 - `LUNAR_HEADLESS=1 pytest -q` at HEAD: **NOT fully passing.** py3.13 (repo's `env` python): 2 failed / 242 passed / 124.0 s; py3.12 (full requirements): 1 failed / 265 passed / 122.5 s. The CLAUDE.md "244 passed, 0 failed" claim does not reproduce under any tested configuration; PROTOTYPE_STATUS.md's "199 passed" is stale.
+---
+
+## 9. Post-audit integration session — corrections and measurements
+
+**Date:** 2026-10-18, 14:00–16:05 AEDT.
+**Tree:** `f320b07` (archaeology + Glitch Lab/Seed Surfer registered) plus the
+working changes committed with this section.
+**Method:** every number below was measured on this machine. Commands were run
+with `env -u PYTHONPATH` (see 9.1).
+
+### 9.1 Corrections to this audit
+
+| Audit claim | Correction (measured) |
+|---|---|
+| §5/§K: "FLUX.1-schnell weights ARE on disk" | **False.** Shards 1 and 3 of the transformer, the CLIP encoder and the VAE were present; transformer shard 2 (9.95 GB) and T5 shard 1 (4.99 GB) were missing. The cache looked populated because HF creates snapshot symlinks before the blobs arrive. `doctor` now checks every index-referenced shard before claiming `image-gen` ready. |
+| §K: mflux 0.23 API mismatch blocks generation | **Fixed.** The adapter now imports `mflux.models.flux.variants.txt2img.flux.Flux1` and calls `generate_image(seed, prompt, num_inference_steps, height, width, guidance)`; dependency pinned to `mflux>=0.23,<0.24`. |
+| §5: "mlx* fails (dylib load)" | In the current `env/` (Python 3.13) `mlx` 0.32.4 imports and runs. The failure this session was a **PYTHONPATH leak**: the agent shell exported a Python 3.14 `site-packages`, whose `numpy` shadowed the 3.13 env's (`No module named numpy._core._multiarray_umath`). All measured commands use `env -u PYTHONPATH`. |
+| §2: seed_surfer / real_time_glitch_lab absent from registry | **Fixed at f320b07.** Both are launchable via `lunar_tools_demo.py list/run`. |
+| §7 blockers 3/4/7 | Path-vs-pixels renderer contract fixed defensively; mflux adapter fixed; registry fixed. |
+
+### 9.2 mflux — real local images
+
+Model identity recorded in every cache entry and image metadata:
+`black-forest-labs/FLUX.1-schnell` @ `741f7c3c…`, 4-bit quantisation, 4 inference
+steps, guidance 4.0. The adapter was pointed at the local snapshot
+(`HF_HUB_OFFLINE` is not usable because mflux resolves the repo through the Hub
+API), so no weights were re-downloaded during measurement.
+
+| Size | Cold (load + first render) | Warm mean (n=3) | Peak MLX memory |
+|---|---|---|---|
+| 512×512 | 2.73 s | **1.644 s** | 13.42 GB |
+| 1024×1024 | — (same process, warm) | **5.887 s** | 21.84 GB |
+
+Image at 1024²: 1.9–2.1 MB PNG; the 768 px copy is
+`docs/evidence/mflux_schnell_1024.png`. The image is a coherent cosmic scene
+(independently described by a vision pass), not noise.
+
+### 9.3 Seed Surfer — real inference
+
+`scripts/verify_seed_surfer.py --seeds 4` against the mflux backend:
+
+- seeds 42–45: 2.756 s / 1.660 s / 1.701 s / 1.726 s, four distinct SHA-256s.
+- cache hit for seed 42: **10 µs** lookup, no generation.
+- identity guard: spoofing a different weights revision makes
+  `cached_entry()` return `None` — a stale image cannot masquerade as the
+  current model's output.
+- favourites: record identity, revision, identity key, cache key, path and
+  generation metadata.
+- bounded scheduling: 8 rapid requests → **1 generation**, 7 cancelled,
+  only the last seed delivered.
+- keyboard: a `right` key step changed the seed 42→52 with 0.36 ms handler
+  latency (logic path; no physical key event without a window).
+
+Contact sheet: `docs/evidence/seed_surfer_seeds_42-45.png`.
+
+### 9.4 Glitch Lab — pipeline verified, camera not
+
+`scripts/verify_glitch_lab.py` over a 6 s 720p recorded clip (synthetic test
+pattern, `outputs/glitch_lab/synthetic_reference_720p.mp4`):
+
+- capture thread → transform → renderer delivered **30.1 fps** (121 frames in
+  4.0 s), zero spurious duplicate drops after switching the loop to a
+  condition-variable wait.
+- all four families transform real frames (pixel_sort 77.3 % of pixels changed
+  at intensity 0.8; channel shift 5.0 %; scanline 1.4 %; mosh 2.0 %).
+- keyboard logic (1–4, up/down, space) changes family/intensity.
+- camera loss/recovery: `tests/test_identity_and_video.py` drives a webcam that
+  fails twice then recovers; state goes NO_CAMERA → CONNECTED and rendering
+  resumes.
+- **Camera hardware: denied.** `cv2.VideoCapture(0)` logs
+  `OpenCV: not authorized to capture video (status 0), requesting...` and
+  fails in 0.26–0.45 s. TCC approval needs the logged-in user to accept the
+  prompt for the calling binary; it cannot be granted from this session.
+- **Windowed rendering: unverified.** This agent shell has no WindowServer
+  screens; pyglet raises `IndexError: list index out of range` in
+  `display.get_default_screen()`. The 30.1 fps figure is the null-renderer
+  pipeline rate, not pyglet presentation fps.
+
+Montage: `docs/evidence/glitch_families_montage.png`.
+
+### 9.5 Test suite (Python 3.13, `env/`)
+
+`LUNAR_HEADLESS=1 env -u PYTHONPATH ./env/bin/python -m pytest -q`:
+**2 failed, 273 passed** in 105.9 s. Both failures are the pre-existing
+`time-shifted-echo-chamber` pair caused by `pydub 0.25` importing
+`audioop`/`pyaudioop`, removed in Python 3.13 — unrelated to this work and
+reported separately.
+
+### 9.6 Remaining blockers
+
+1. **Camera TCC permission** — human action required; cannot be automated.
+2. **Windowed rendering** — must be launched from a GUI login session.
+3. **Weight provisioning** — `scripts/fetch_models.py` does not cover FLUX;
+   a fresh cache needs ~34 GB downloaded before the first render, and HF can
+   leave half-populated snapshots that look complete.
+4. **pydub/audioop on Python 3.13** — two baseline test failures.

@@ -1,0 +1,73 @@
+{
+  "generated_at": 1792294069.637181,
+  "recorded_clip": "outputs/glitch_lab/synthetic_reference_720p.mp4",
+  "recorded_clip_resolution": [
+    720,
+    1280,
+    3
+  ],
+  "glitch_families": {
+    "pixel_sort": {
+      "shape": [
+        720,
+        1280,
+        3
+      ],
+      "changed_pixels_vs_source": 0.7731521267361111,
+      "output_sha256": "7b52b9c9ec773239935f927265a06be3969d6036638c210be9342407838a3627"
+    },
+    "color_channel_shift": {
+      "shape": [
+        720,
+        1280,
+        3
+      ],
+      "changed_pixels_vs_source": 0.049652777777777775,
+      "output_sha256": "bd3b531c6eb88bf4a0a324ea92864c17757bf97ad0cd703b459259ea242e2938"
+    },
+    "scanline_interruption": {
+      "shape": [
+        720,
+        1280,
+        3
+      ],
+      "changed_pixels_vs_source": 0.015400390625,
+      "output_sha256": "09e6f1a5c597fed3c0c2587f161e243ee81a3ef23b1f092fc661c6adb51e4d10"
+    },
+    "data_moshing_simulated": {
+      "shape": [
+        720,
+        1280,
+        3
+      ],
+      "changed_pixels_vs_source": 0.019592013888888888,
+      "output_sha256": "3227b568af73a0a8fd5a6d84b9f7b729e3d7aac030c8d4da75c46044662ffacf"
+    }
+  },
+  "pipeline": {
+    "frames_rendered": 121,
+    "frames_dropped": 0,
+    "delivered_fps": 30.13108298090759,
+    "camera_state_final": "connected"
+  },
+  "keyboard_logic": {
+    "before": [
+      "pixel_sort",
+      0.5
+    ],
+    "after": [
+      "color_channel_shift",
+      0.6
+    ],
+    "family_changed": true,
+    "intensity_increased": true
+  },
+  "camera_hardware": {
+    "attempted": true,
+    "opened_and_delivered_frame": false,
+    "elapsed_s": 0.258,
+    "note": "macOS TCC denied capture in this session (OpenCV logged 'not authorized to capture video (status 0)'); approval requires the logged-in user to accept the system prompt for the calling binary. No frames were obtained."
+  },
+  "hardware_verified": false,
+  "evidence_kind": "recorded-video pipeline verification, not camera hardware"
+}

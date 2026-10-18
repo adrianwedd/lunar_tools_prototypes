@@ -26,6 +26,57 @@ The demo runs its real logic against fake devices; press `Ctrl-C` to stop
 preflight, which is what you want headless — the doctor intentionally probes
 real hardware only.
 
+## The two live installations
+
+Both are registered demos, so `list`/`doctor`/`run` describe and preflight them.
+
+### Seed Surfer — real local seed surfing
+
+```bash
+env -u PYTHONPATH ./env/bin/python lunar_tools_demo.py doctor seed-surfer
+env -u PYTHONPATH ./env/bin/python lunar_tools_demo.py run seed-surfer
+```
+
+Controls: `+`/`up` next seed, `-`/`down` previous, `left`/`right` ±10,
+`space` random jump, `s` favourite, `a` prefetch toggle, `q` quit.
+MIDI CC20 is the surf dial; CC21 saves a favourite.
+
+Measured on the M5 Ultra (FLUX.1-schnell, 4-bit, 4 steps, 512²): 1.64 s warm
+per new seed; a cached seed is served in ~10 µs. Favourites are written to
+`outputs/seed_surfer/favourites.json` with the model identity, weights
+revision, cache key and generation metadata.
+
+Verification (real inference, no window needed):
+
+```bash
+env -u PYTHONPATH ./env/bin/python scripts/verify_seed_surfer.py --seeds 4
+```
+
+### Glitch Lab — live camera or recorded source
+
+```bash
+env -u PYTHONPATH ./env/bin/python lunar_tools_demo.py doctor real-time-glitch-art-lab
+env -u PYTHONPATH ./env/bin/python lunar_tools_demo.py run real-time-glitch-art-lab
+```
+
+Controls: `1`–`4` glitch family, `up`/`down` intensity, `space` re-roll, `q` quit.
+
+macOS camera permission is a hard boundary: the first run triggers a TCC
+prompt that only the logged-in user can accept. Until it is granted the lab
+renders its explicit standby state and `doctor` reports `camera` failing.
+When camera access is unavailable, exercise the rest of the pipeline against
+a recorded clip — this is a demonstration, **not** hardware verification:
+
+```bash
+env -u PYTHONPATH ./env/bin/python prototypes/real_time_glitch_lab.py \
+  --video outputs/glitch_lab/synthetic_reference_720p.mp4 --seconds 30
+env -u PYTHONPATH ./env/bin/python scripts/verify_glitch_lab.py
+```
+
+The windowed path (`pyglet`) needs a GUI login session; an SSH/agent shell
+has no WindowServer screens and `doctor`'s `renderer` probe will fail with
+`IndexError: list index out of range`.
+
 ## Reading the `list` output
 
 - `●` works / `◐` degraded — **headless smoke status**: the prototype
@@ -44,11 +95,11 @@ real hardware only.
 | `headless` | warns if `LUNAR_HEADLESS=1` is set interactively | unset it to use real devices |
 | `mic` / `audio-out` | input/output device present (subprocess probe, 5s timeout) | `pip install -e '.[hw]'`, plug in / grant permission |
 | `camera` | camera 0 opens and is released (8s timeout) | `.[vision]` extra + macOS camera permission |
-| `renderer` | an invisible pyglet window can be created | `.[hw]` extra; on Linux, a display/X server |
+| `renderer` | an invisible pyglet window can be created | `.[hw]` extra; launch from a GUI login session (an SSH/agent shell has no WindowServer screens) |
 | `midi` | at least one MIDI input enumerates | connect a controller |
 | `llm` | provider-aware: Ollama endpoint reachable, or `mlx-lm` importable, or the provider's API key set | `ollama serve` / `pip install -e '.[mlx]'` / set the key |
 | `afterwords` | TTS server answers at `afterwords.server_url` | `cd ../afterwords && python server.py` |
-| `image-gen` | configured backend (default `mflux`) is importable | `pip install -e '.[mlx]'` |
+| `image-gen` | the mflux adapter imports against the installed mflux **and** the cached model snapshot contains every weight shard | `pip install -e '.[mlx]'` / `hf download <repo>` |
 | `assets` | demo's expected files (e.g. mp3s) exist | supply the file or point `--config` at yours |
 | `peer` | always a warning — ZMQ demos need a second process it cannot see | see below |
 
@@ -112,3 +163,6 @@ that:
 - **Missing mp3 assets** (`escape-room`, `apocalypse-experience`,
   `neural-transfer-music-visualizer`, `augmented-audio-tours`) — these files
   are not shipped in the repo; provide your own or reconfigure the paths.
+- **`numpy._core._multiarray_umath` or mlx import errors** — your shell is
+  exporting a `PYTHONPATH` from another interpreter (common when started from
+  an agent harness). Launch with `env -u PYTHONPATH ./env/bin/python ...`.

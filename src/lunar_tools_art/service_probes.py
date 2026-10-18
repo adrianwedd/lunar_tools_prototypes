@@ -80,12 +80,33 @@ def probe_afterwords():
 def probe_image_gen():
     backend = _get_cfg("image.backend", "mflux")
     if backend == "mflux":
-        ok = importlib.util.find_spec("mflux") is not None
+        if importlib.util.find_spec("mflux") is None:
+            return CheckResult(
+                "image-gen", "fail", "mflux not installed",
+                "pip install -e '.[mlx]'",
+            )
+        # Import only: never load the model in a preflight probe.
+        try:
+            from .tools.images import ImageGenerator, mflux_weights_status
+
+            gen = ImageGenerator(
+                backend="mflux",
+                model=str(_get_cfg("image.model", "schnell")),
+                quantize=int(_get_cfg("image.quantize", 4)),
+            )
+            identity = gen.identity()
+        except Exception as e:
+            return CheckResult(
+                "image-gen", "fail",
+                f"mflux adapter incompatible with installed mflux: {e}",
+                "repair the adapter for the installed mflux API",
+            )
+        ready, detail = mflux_weights_status(identity)
         return CheckResult(
             "image-gen",
-            "pass" if ok else "fail",
-            "mflux importable" if ok else "mflux not installed",
-            None if ok else "pip install -e '.[mlx]'",
+            "pass" if ready else "fail",
+            detail,
+            None if ready else "download the model weights (hf download <repo>)",
         )
     return CheckResult("image-gen", "pass", f"backend '{backend}'", None)
 

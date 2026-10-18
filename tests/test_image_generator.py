@@ -103,67 +103,65 @@ def test_cloud_backend_allowed_constructs(tmp_path, monkeypatch):
     assert gen.backend == "openai"
 
 
-def test_mflux_backend_generates_with_mocked_module(tmp_path, monkeypatch):
-    import sys
-    import types
-
+def test_mflux_backend_uses_current_api(tmp_path, monkeypatch):
+    """mflux >=0.23: Flux1 lives under models.flux.variants.txt2img and
+    generate_image takes kwargs (no root-level Config)."""
     import numpy as np
     from PIL import Image
 
-    fake_mflux = types.ModuleType("mflux")
-
-    class FakeConfig:
-        def __init__(self, num_inference_steps=4, height=1024, width=1024):
-            self.num_inference_steps = num_inference_steps
-            self.height = height
-            self.width = width
+    calls = {}
 
     class FakeFlux1:
         @classmethod
         def from_name(cls, model_name, quantize=None):
+            calls["model"] = model_name
+            calls["quantize"] = quantize
             return cls()
 
-        def generate_image(self, seed, prompt, config):
-            arr = np.zeros((config.height, config.width, 3), dtype=np.uint8)
+        def generate_image(self, **kwargs):
+            calls.update(kwargs)
+            arr = np.zeros((kwargs["height"], kwargs["width"], 3), dtype=np.uint8)
             img = Image.fromarray(arr)
 
             class Result:
-                def save(self_inner, path):
+                def save(self_inner, path, overwrite=False):
                     img.save(path)
 
             return Result()
 
-    fake_mflux.Flux1 = FakeFlux1
-    fake_mflux.Config = FakeConfig
-    monkeypatch.setitem(sys.modules, "mflux", fake_mflux)
+    class FakeConfig:
+        model_name = "black-forest-labs/FLUX.1-schnell"
 
-    from lunar_tools_art.tools.images import ImageGenerator
+    from lunar_tools_art.tools import images as images_mod
 
-    gen = ImageGenerator(
-        backend="mflux", model="schnell", quantize=4, output_dir=str(tmp_path)
+    monkeypatch.setattr(images_mod, "_flux1_class", lambda: FakeFlux1)
+    monkeypatch.setattr(images_mod, "_model_config", lambda name: FakeConfig())
+    monkeypatch.setattr(images_mod, "_hf_snapshot_revision", lambda repo: "rev123")
+
+    gen = images_mod.ImageGenerator(
+        backend="mflux", model="schnell", quantize=4,
+        steps=4, guidance=3.5, output_dir=str(tmp_path),
     )
     path, meta = gen.generate("a moon garden", size=(64, 64), seed=3)
+
     assert path.endswith(".png")
     assert meta["backend"] == "mflux"
     assert meta["seed"] == 3
+    assert calls["model"] == "schnell" and calls["quantize"] == 4
+    assert calls["num_inference_steps"] == 4
+    assert calls["height"] == 64 and calls["width"] == 64
+    assert calls["guidance"] == 3.5
+    assert "config" not in calls  # old API must not be used
+    assert meta["identity"]["model_repo"] == "black-forest-labs/FLUX.1-schnell"
+    assert meta["identity"]["model_revision"] == "rev123"
+    assert meta["identity"]["num_inference_steps"] == 4
 
 
 def test_mflux_backend_propagates_actual_seed_when_none(tmp_path, monkeypatch):
     """seed=None should not be lost: mflux computes an actual seed at
     generation time, and it must show up in metadata rather than `None`."""
-    import sys
-    import types
-
     import numpy as np
     from PIL import Image
-
-    fake_mflux = types.ModuleType("mflux")
-
-    class FakeConfig:
-        def __init__(self, num_inference_steps=4, height=1024, width=1024):
-            self.num_inference_steps = num_inference_steps
-            self.height = height
-            self.width = width
 
     consumed_seeds = []
 
@@ -172,27 +170,64 @@ def test_mflux_backend_propagates_actual_seed_when_none(tmp_path, monkeypatch):
         def from_name(cls, model_name, quantize=None):
             return cls()
 
-        def generate_image(self, seed, prompt, config):
-            consumed_seeds.append(seed)
-            arr = np.zeros((config.height, config.width, 3), dtype=np.uint8)
+        def generate_image(self, **kwargs):
+            consumed_seeds.append(kwargs["seed"])
+            arr = np.zeros((kwargs["height"], kwargs["width"], 3), dtype=np.uint8)
             img = Image.fromarray(arr)
 
             class Result:
-                def save(self_inner, path):
+                def save(self_inner, path, overwrite=False):
                     img.save(path)
 
             return Result()
 
-    fake_mflux.Flux1 = FakeFlux1
-    fake_mflux.Config = FakeConfig
-    monkeypatch.setitem(sys.modules, "mflux", fake_mflux)
+    class FakeConfig:
+        model_name = "black-forest-labs/FLUX.1-schnell"
 
-    from lunar_tools_art.tools.images import ImageGenerator
+    from lunar_tools_art.tools import images as images_mod
 
-    gen = ImageGenerator(
+    monkeypatch.setattr(images_mod, "_flux1_class", lambda: FakeFlux1)
+    monkeypatch.setattr(images_mod, "_model_config", lambda name: FakeConfig())
+    monkeypatch.setattr(images_mod, "_hf_snapshot_revision", lambda repo: "rev123")
+
+    gen = images_mod.ImageGenerator(
         backend="mflux", model="schnell", quantize=4, output_dir=str(tmp_path)
     )
     path, meta = gen.generate("a moon garden", size=(64, 64), seed=None)
     assert path.endswith(".png")
     assert consumed_seeds and isinstance(consumed_seeds[0], int)
     assert meta["seed"] == consumed_seeds[0]
+
+
+def test_identity_revision_change_changes_cache_identity(tmp_path, monkeypatch):
+    from lunar_tools_art.tools import images as images_mod
+
+    class FakeConfig:
+        model_name = "black-forest-labs/FLUX.1-schnell"
+
+    revisions = iter(["aaa", "bbb"])
+    monkeypatch.setattr(images_mod, "_model_config", lambda name: FakeConfig())
+    monkeypatch.setattr(images_mod, "_hf_snapshot_revision", lambda repo: next(revisions))
+
+    a = images_mod.ImageGenerator(backend="mflux", output_dir=str(tmp_path)).identity()
+    b = images_mod.ImageGenerator(backend="mflux", output_dir=str(tmp_path)).identity()
+    assert a["model_revision"] == "aaa" and b["model_revision"] == "bbb"
+    assert a != b
+
+
+def test_mflux_weights_status_reports_missing_snapshot():
+    from lunar_tools_art.tools.images import mflux_weights_status
+
+    ok, detail = mflux_weights_status(
+        {"model_repo": "nonexistent/model-xyz", "model_revision": "deadbeef"}
+    )
+    assert ok is False
+    assert "not present" in detail or "not resolved" in detail
+
+
+def test_mflux_weights_status_requires_identity():
+    from lunar_tools_art.tools.images import mflux_weights_status
+
+    ok, detail = mflux_weights_status({"model_repo": None, "model_revision": None})
+    assert ok is False
+    assert "not resolved" in detail

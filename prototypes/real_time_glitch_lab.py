@@ -32,6 +32,7 @@ from src.lunar_tools_art.frame_pipeline import (
     CameraCaptureThread,
     CameraState,
     GlitchPipeline,
+    VideoFileCapture,
     make_standby_frame,
 )
 from src.lunar_tools_art.glitch import GLITCH_TYPES, apply_glitch
@@ -50,7 +51,8 @@ class RealTimeGlitchArtLab:
     """Interactive glitch pipeline. All camera reads and transforms happen
     off the render path; the run loop is main-thread render + controls only."""
 
-    def __init__(self, manager, loop_fps=30):
+    def __init__(self, manager, loop_fps=30, video_path=None, duration=None,
+                 video_loop=False):
         self.manager = manager
         self.renderer = manager.renderer
         self.keyboard = manager.keyboard_input
@@ -59,9 +61,18 @@ class RealTimeGlitchArtLab:
         self.glitch_type = "pixel_sort"
         self.intensity = 0.5
         self._frames_since_standby = 0
+        self._seen_count = 0
+        self.video_path = video_path
+        self.duration = duration
+        self.video_loop = video_loop
 
-        cam = manager.webcam
-        self.capture = CameraCaptureThread(cam)
+        if video_path:
+            # Recorded replay: proves transforms/render/recovery logic, but is
+            # NOT hardware verification. The demo log says so explicitly.
+            self.capture = VideoFileCapture(video_path, target_fps=loop_fps,
+                                            loop=video_loop)
+        else:
+            self.capture = CameraCaptureThread(manager.webcam)
         self.pipeline = GlitchPipeline(self.capture, self.renderer, self.keyboard)
 
         self._dt_target = 1.0 / loop_fps
@@ -120,10 +131,19 @@ class RealTimeGlitchArtLab:
             "Real-Time Glitch Art Lab | keys: 1-4 family, up/down intensity, "
             "space re-roll, q quit"
         )
+        if self.video_path:
+            self.logger.info(
+                f"Source: recorded video {self.video_path} — DEMONSTRATION ONLY, "
+                "not live camera hardware verification."
+            )
         self.capture.start()
         state = None
+        started = time.time()
         try:
             while True:
+                if self.duration is not None and time.time() - started >= self.duration:
+                    self.logger.info("Duration reached; exiting.")
+                    break
                 if self.manager.main_queue is not None:
                     self.manager.main_queue.drain()
                 if not self._handle_keys():
@@ -141,8 +161,16 @@ class RealTimeGlitchArtLab:
                     state = cs
 
                 if cs == CameraState.CONNECTED:
+                    # Block until the capture thread publishes a new frame
+                    # instead of spinning on a timer (macOS inflates short
+                    # sleeps, and a hot loop inflates the drop counter).
+                    self.capture.wait_for_new(self._seen_count, timeout=0.05)
                     st = self.pipeline.process_and_render(self._transform)
+                    self._seen_count = self.capture.frames_delivered
                     fps = st.get("fps")
+                elif cs == CameraState.ENDED:
+                    self.logger.info("Recorded source exhausted; exiting.")
+                    break
                 else:
                     self.renderer.render(
                         make_standby_frame(
@@ -154,7 +182,6 @@ class RealTimeGlitchArtLab:
                     fps = None
                     self._last_rendered_reset()
 
-                time.sleep(self._dt_target * 0.25)  # paced by render cost mostly
                 if fps and self._frames_since_standby % 120 == 0 and fps:
                     self.logger.info(f"Delivered FPS: {fps:.1f}")
                 self._frames_since_standby += 1
@@ -171,12 +198,59 @@ class RealTimeGlitchArtLab:
         self.pipeline._last_rendered_key = None
 
 
-def main():
-    from src.lunar_tools_art import Manager
+class _NullKeys:
+    def is_key_pressed(self, _key):
+        return False
 
-    manager = Manager()
-    lab = RealTimeGlitchArtLab(manager)
+
+class _NullMidi:
+    def get(self, _cc):
+        return 0
+
+
+class _HeadlessManager:
+    """Minimal manager for pipeline verification without a window or camera."""
+
+    def __init__(self, width=1280, height=720):
+        from src.lunar_tools_art.tools.display import Renderer
+
+        self.renderer = Renderer(width=width, height=height, backend="null")
+        self.keyboard_input = _NullKeys()
+        self.midi_input = _NullMidi()
+        self.webcam = None
+        self.main_queue = None
+        self.logger = logger
+
+
+def main():
+    import argparse
+
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--video", help="replay a recorded video (demo only)")
+    parser.add_argument("--seconds", type=float, default=None,
+                        help="stop after N seconds (default: run until quit)")
+    parser.add_argument("--fps", type=float, default=30, help="capture/render pacing")
+    parser.add_argument("--loop", action="store_true", help="loop the recorded video")
+    parser.add_argument("--headless", action="store_true",
+                        help="null renderer; measure the pipeline without a window")
+    args = parser.parse_args()
+
+    if args.headless:
+        manager = _HeadlessManager()
+    else:
+        from src.lunar_tools_art import Manager
+
+        manager = Manager()
+    lab = RealTimeGlitchArtLab(
+        manager, loop_fps=args.fps, video_path=args.video,
+        duration=args.seconds, video_loop=args.loop,
+    )
     lab.run()
+    logger.info(
+        f"Summary: rendered={lab.pipeline.frames_rendered} "
+        f"dropped={lab.pipeline.frames_dropped} "
+        f"delivered_fps={lab.pipeline.delivered_fps()}"
+    )
 
 
 if __name__ == "__main__":

@@ -42,4 +42,6 @@ auto_delete_session = true
 backend = "mflux"
 model = "schnell"
 quantize = 4
+steps = 4          # FLUX.1-schnell is distilled for 4 steps
+guidance = 4.0
 output_dir = "outputs/images"
