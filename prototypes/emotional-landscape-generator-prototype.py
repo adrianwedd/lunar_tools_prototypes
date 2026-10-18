@@ -1,6 +1,9 @@
 import time
 
+import numpy as np
+
 from src.lunar_tools_art import Manager
+from src.lunar_tools_art.tools.images import load_generated_image
 
 
 class EmotionDetector:
@@ -56,8 +59,8 @@ class EmotionalLandscapeGenerator:
     def generate_landscape(self, emotion):
         prompt = self.emotion_prompts.get(emotion, "A neutral landscape")
         try:
-            image, _ = self.sdxl_turbo.generate(prompt)
-            return image
+            result, _ = self.sdxl_turbo.generate(prompt)
+            return np.asarray(load_generated_image(result))
         except Exception as e:
             self.lunar_tools_art_manager.logger.error(
                 f"Error generating image for emotion {emotion}: {e}", exc_info=True

@@ -9,7 +9,10 @@ toward still deep-space fields.
 
 import time
 
+import numpy as np
+
 from src.lunar_tools_art.prototype_base import InteractivePrototype
+from src.lunar_tools_art.tools.images import load_generated_image
 
 PALETTES = {
     "calm": "deep indigo and silver starlight",
@@ -114,8 +117,11 @@ class CosmicSoundscape(InteractivePrototype):
             self.logger.error(f"Image generation failed: {e}")
             return None
         if isinstance(result, tuple):
-            return result[0]
-        return result
+            result = result[0]
+        if result is None:
+            return None
+        # Backends return a PNG path; the renderer needs decoded pixels.
+        return np.asarray(load_generated_image(result))
 
 
 if __name__ == "__main__":

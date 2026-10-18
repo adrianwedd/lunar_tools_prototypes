@@ -1,6 +1,9 @@
 import time
 
+import numpy as np
+
 from src.lunar_tools_art import Manager
+from src.lunar_tools_art.tools.images import load_generated_image
 
 
 class ApocalypseExperience:
@@ -21,8 +24,8 @@ class ApocalypseExperience:
     def generate_apocalypse_visual(self):
         prompt = "A desolate, post-apocalyptic landscape with ruined buildings and a stormy sky. Style: realistic, grim, high detail."
         try:
-            image, _ = self.lunar_tools_art_manager.dalle3.generate(prompt)
-            return image
+            result, _ = self.lunar_tools_art_manager.dalle3.generate(prompt)
+            return np.asarray(load_generated_image(result))
         except Exception as e:
             self.lunar_tools_art_manager.logger.error(
                 f"Error generating apocalypse visual: {e}", exc_info=True
@@ -40,7 +43,8 @@ class ApocalypseExperience:
             if scene:
                 self.sound_player.play_sound(self.ambient_sound_file)
                 image = self.generate_apocalypse_visual()
-                self.renderer.render(image)
+                if image is not None:
+                    self.renderer.render(image)
 
             time.sleep(self.loop_delay)
 

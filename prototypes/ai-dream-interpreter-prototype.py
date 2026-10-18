@@ -1,8 +1,10 @@
 import time
 
+import numpy as np
 from opentelemetry import trace
 
 from src.lunar_tools_art import Manager
+from src.lunar_tools_art.tools.images import load_generated_image
 from utils import generate_and_play_speech, record_and_transcribe_speech
 
 
@@ -20,10 +22,12 @@ class AIDreamInterpreter:
 
     def interpret_dream(self, dream_description):
         try:
-            # Generate image based on dream description
-            image, _ = self.dalle3.generate(
+            # Generate image based on dream description. The generator returns
+            # a PNG *path*; decode it so callers get pixels, not a string.
+            result, _ = self.dalle3.generate(
                 f"A surreal dream scene: {dream_description}"
             )
+            image = np.asarray(load_generated_image(result))
 
             # Generate interpretation using GPT-4
             interpretation = self.llm.generate(
@@ -47,7 +51,7 @@ class AIDreamInterpreter:
                     self.logger.info(f"You described: {dream_description}")
                     image, interpretation = self.interpret_dream(dream_description)
 
-                    if image and interpretation:
+                    if image is not None and interpretation:
                         # Display image
                         self.renderer.render(image)
 

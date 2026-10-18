@@ -1,7 +1,10 @@
 import time
 from datetime import datetime
 
+import numpy as np
+
 from src.lunar_tools_art import Manager
+from src.lunar_tools_art.tools.images import load_generated_image
 
 
 class TemporalArtGallery:
@@ -31,13 +34,13 @@ class TemporalArtGallery:
 
     def generate_artwork(self, prompt):
         try:
-            image, _ = self.flux.generate(
+            result, _ = self.flux.generate(
                 prompt,
                 image_size="square_hd",
                 num_inference_steps=4,
                 seed=int(time.time()),
             )
-            return image
+            return np.asarray(load_generated_image(result))
         except Exception as e:
             self.logger.error(
                 f"Error generating artwork for prompt '{prompt}': {e}", exc_info=True

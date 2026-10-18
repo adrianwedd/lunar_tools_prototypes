@@ -1,6 +1,9 @@
 import time
 
+import numpy as np
+
 from src.lunar_tools_art import Manager
+from src.lunar_tools_art.tools.images import load_generated_image
 
 
 class EscapeRoomGame:
@@ -46,8 +49,8 @@ class EscapeRoomGame:
             ]
             prompt = f"A visual representation of a puzzle: {puzzle_description}. Style: intricate, mysterious, ancient, high detail."
             try:
-                image, _ = self.lunar_tools_art_manager.dalle3.generate(prompt)
-                return image
+                result, _ = self.lunar_tools_art_manager.dalle3.generate(prompt)
+                return np.asarray(load_generated_image(result))
             except Exception as e:
                 self.lunar_tools_art_manager.logger.error(
                     f"Error generating puzzle visual for '{puzzle_description}': {e}",
@@ -58,8 +61,8 @@ class EscapeRoomGame:
             self.logger.info("All puzzles solved. Generating game over visual.")
             prompt = "A visual representing the successful completion of an escape room. Style: triumphant, celebratory, detailed."
             try:
-                image, _ = self.lunar_tools_art_manager.dalle3.generate(prompt)
-                return image
+                result, _ = self.lunar_tools_art_manager.dalle3.generate(prompt)
+                return np.asarray(load_generated_image(result))
             except Exception as e:
                 self.lunar_tools_art_manager.logger.error(
                     f"Error generating game over visual: {e}", exc_info=True
@@ -72,7 +75,8 @@ class EscapeRoomGame:
         # Initial puzzle display
         if self.game_state["current_puzzle"] < len(self.puzzles):
             initial_image = self.generate_next_puzzle_visual()
-            self.renderer.render(initial_image)
+            if initial_image is not None:
+                self.renderer.render(initial_image)
             self.logger.info(
                 f"Current puzzle: {self.puzzles[self.game_state['current_puzzle']]['description']}"
             )
@@ -118,14 +122,16 @@ class EscapeRoomGame:
                                 f"Moving to next puzzle: {self.puzzles[self.game_state['current_puzzle']]['description']}"
                             )
                             image = self.generate_next_puzzle_visual()
-                            self.renderer.render(image)
+                            if image is not None:
+                                self.renderer.render(image)
                         else:
                             self.logger.info("All puzzles solved! Game Over!")
                             self.game_state["game_over"] = True
                             image = (
                                 self.generate_next_puzzle_visual()
                             )  # Generate game over visual
-                            self.renderer.render(image)
+                            if image is not None:
+                                self.renderer.render(image)
                             break  # Exit game loop
                     else:
                         self.logger.info("Incorrect solution.")

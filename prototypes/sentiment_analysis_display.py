@@ -1,7 +1,10 @@
 import time
 from datetime import datetime
 
+import numpy as np
+
 from src.lunar_tools_art import Manager
+from src.lunar_tools_art.tools.images import load_generated_image
 
 
 class SentimentDisplay:
@@ -55,8 +58,8 @@ class SentimentDisplay:
         }
         prompt = prompt_map.get(sentiment, prompt_map["neutral"])
         try:
-            image, _ = self.lunar_tools_art_manager.dalle3.generate(prompt)
-            return image
+            result, _ = self.lunar_tools_art_manager.dalle3.generate(prompt)
+            return np.asarray(load_generated_image(result))
         except Exception as e:
             self.lunar_tools_art_manager.logger.error(
                 f"Error generating visual for sentiment {sentiment}: {e}", exc_info=True
@@ -102,7 +105,8 @@ class SentimentDisplay:
 
             sentiment = self.analyze_sound(audio_filename)
             image = self.generate_sentiment_visual(sentiment)
-            self.renderer.render(image)
+            if image is not None:
+                self.renderer.render(image)
 
             sound = self.generate_sentiment_sound(sentiment)
             self.sound_player.play_sound(sound)

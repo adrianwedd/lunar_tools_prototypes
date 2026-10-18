@@ -1,6 +1,9 @@
 import time
 
+import numpy as np
+
 from src.lunar_tools_art import Manager
+from src.lunar_tools_art.tools.images import load_generated_image
 
 
 class SpeechArtGenerator:
@@ -15,6 +18,15 @@ class SpeechArtGenerator:
         self.keyboard_input = self.lunar_tools_art_manager.keyboard_input
         self.no_speech_delay = no_speech_delay
         self.loop_delay = loop_delay
+
+    def generate_art(self, prompt):
+        """Render-ready pixels for one speech-derived prompt.
+
+        The image generator returns a PNG path; decode it here so the loop
+        renders actual pixels instead of a static wallpaper.
+        """
+        result, _ = self.dalle3.generate(prompt)
+        return np.asarray(load_generated_image(result))
 
     def run(self):
         self.lunar_tools_art_manager.logger.info(
@@ -57,12 +69,14 @@ class SpeechArtGenerator:
                     time.sleep(self.no_speech_delay)
                     continue
 
-                # Generate image from prompt
+                # Generate image from prompt. The generator returns a PNG
+                # path; decode it because the renderer draws pixels.
                 self.lunar_tools_art_manager.logger.info("Generating image...")
-                image, _ = self.dalle3.generate(prompt)
+                image = self.generate_art(prompt)
 
                 # Render the generated image
-                self.renderer.render(image)
+                if image is not None:
+                    self.renderer.render(image)
 
             except Exception as e:
                 self.lunar_tools_art_manager.logger.error(

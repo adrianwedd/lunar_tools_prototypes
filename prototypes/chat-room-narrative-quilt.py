@@ -4,6 +4,8 @@ import time
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
+from src.lunar_tools_art.tools.images import load_generated_image
+
 # from flask import Flask, render_template
 # from flask_socketio import SocketIO, emit
 
@@ -61,8 +63,10 @@ class ChatRoomNarrativeQuilt:
     def _generate_panel_graphic(self, description):
         prompt = f"Generate a small abstract panel graphic based on: {description}"
         try:
-            image, _ = self.dalle3.generate(prompt, image_size="square_small")
-            return image
+            result, _ = self.dalle3.generate(prompt, image_size="square_small")
+            # The generator returns a PNG path; _composite_patch resizes the
+            # graphic, so decode it to a PIL image here.
+            return load_generated_image(result)
         except Exception as e:
             self.logger.error(
                 f"Error generating panel graphic for '{description}': {e}",

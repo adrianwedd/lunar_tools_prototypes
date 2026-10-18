@@ -1,6 +1,9 @@
 import time
 
+import numpy as np
+
 from src.lunar_tools_art import Manager
+from src.lunar_tools_art.tools.images import load_generated_image
 
 
 class AIFashionShow:
@@ -33,8 +36,9 @@ class AIFashionShow:
     def generate_outfit(self, theme):
         try:
             prompt = f"Full body photo of a model on a runway wearing a {theme} outfit, fashion photography style"
-            image, _ = self.dalle3.generate(prompt)
-            return image
+            result, _ = self.dalle3.generate(prompt)
+            # Backends return a PNG path; the renderer needs decoded pixels.
+            return np.asarray(load_generated_image(result))
         except ConnectionError as e:
             self.logger.warning(
                 f"Network connection failed while generating outfit for {theme}: {e}"
@@ -57,7 +61,7 @@ class AIFashionShow:
             for _ in range(self.outfits_per_theme):
                 try:
                     outfit = self.generate_outfit(theme)
-                    if outfit:
+                    if outfit is not None:
                         self.renderer.render(outfit)
                     else:
                         self.logger.warning(

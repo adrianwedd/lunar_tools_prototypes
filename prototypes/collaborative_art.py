@@ -1,7 +1,10 @@
 import threading
 import time
 
+import numpy as np
+
 from src.lunar_tools_art import Manager
+from src.lunar_tools_art.tools.images import load_generated_image
 
 
 class CollaborativeArtServer:
@@ -25,7 +28,10 @@ class CollaborativeArtServer:
 
     def generate_and_modify_image(self, prompt):
         try:
-            image, _ = self.stable_diffusion.generate(prompt)
+            result, _ = self.stable_diffusion.generate(prompt)
+            # Decode the returned PNG path: both the renderer and send_img()
+            # need an HxWx3 array (send_img reads img.shape / img.tobytes()).
+            image = np.asarray(load_generated_image(result))
             self.renderer.render(image)
             return image
         except Exception as e:

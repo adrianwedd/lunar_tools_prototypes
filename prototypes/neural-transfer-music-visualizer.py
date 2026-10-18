@@ -8,6 +8,7 @@ import numpy as np
 from PIL import Image
 
 from src.lunar_tools_art import Manager
+from src.lunar_tools_art.tools.images import load_generated_image
 
 
 class NeuralTransferMusicVisualizer:
@@ -53,7 +54,7 @@ class NeuralTransferMusicVisualizer:
             # Use SDXL_TURBO to generate a stylized image
             # For simplicity, we'll use a fixed style prompt. In a real app, this could be dynamic.
             style_prompt = "a vibrant, abstract, painterly style"
-            stylized_image, _ = self.lunar_tools_art_manager.sdxl_turbo.generate(
+            stylized_result, _ = self.lunar_tools_art_manager.sdxl_turbo.generate(
                 style_prompt, image_path=temp_image_path
             )
 
@@ -64,7 +65,9 @@ class NeuralTransferMusicVisualizer:
                 except OSError as e:
                     self.logger.warning(f"Failed to remove {temp_image_path}: {e}")
 
-            return np.array(stylized_image)  # Convert back to numpy array
+            # The backend returns a PNG path; np.array(path) would be a 0-d
+            # string array. Decode it back to HxWx3 pixels for the renderer.
+            return np.asarray(load_generated_image(stylized_result))
         except Exception as e:
             self.logger.error(f"Error during neural style transfer: {e}", exc_info=True)
             return frame  # Return original frame on error

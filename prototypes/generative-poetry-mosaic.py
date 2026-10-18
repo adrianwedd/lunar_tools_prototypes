@@ -2,6 +2,7 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
 from src.lunar_tools_art import Manager
+from src.lunar_tools_art.tools.images import load_generated_image
 
 
 class GenerativePoetryMosaic:
@@ -28,12 +29,23 @@ class GenerativePoetryMosaic:
     def _generate_poem(self, keyword):
         prompt = f"Generate a two-line poem about: {keyword}"
         poem = self.gpt4.generate(prompt)
+        if not poem:
+            # LLM backends return None when they are down; the loop already
+            # treats an empty poem as "try another keyword", so don't crash.
+            return []
         return poem.strip().split("\n")[:2]  # Ensure two lines
 
     def _generate_background_image(self, poem_line):
+        """Generate the tile background as a PIL image (not a PNG path).
+
+        The generator returns ``(path, metadata)``; ``_create_tile`` resizes
+        the result, so decode it here before any pixel work happens.
+        """
         prompt = f"Abstract background image inspired by: {poem_line}"
-        image, _ = self.dalle3.generate(prompt, image_size="square_small")
-        return image
+        result, _ = self.dalle3.generate(prompt, image_size="square_small")
+        if result is None:
+            return None
+        return load_generated_image(result)
 
     def _create_tile(self, poem_lines, background_image):
         tile_img = background_image.resize(self.tile_size)
@@ -82,6 +94,30 @@ class GenerativePoetryMosaic:
         self.canvas.paste(tile_img, (x_offset, y_offset))
         self.tiles.append(tile_img)  # Keep track of tiles for count
 
+    def _step(self, keyword):
+        """Run one full mosaic iteration: keyword -> poem -> image -> tile.
+
+        Pastes the new tile onto the canvas and renders the canvas. Returns
+        ``True`` when a tile was rendered, ``False`` when the iteration was
+        skipped because no poem or background image was produced.
+        """
+        poem_lines = self._generate_poem(keyword)
+        if not poem_lines:
+            self.logger.info("Could not generate poem. Try another keyword.")
+            return False
+
+        background_image = self._generate_background_image(poem_lines[0])
+        if background_image is None:
+            self.logger.info(
+                "Could not generate background image. Try another keyword."
+            )
+            return False
+
+        tile = self._create_tile(poem_lines, background_image)
+        self._add_tile_to_canvas(tile)
+        self.renderer.render(np.array(self.canvas))
+        return True
+
     def run(self):
         self.logger.info(
             "Generative Poetry Mosaic: Type keywords and press Enter. Press 'q' to quit."
@@ -97,22 +133,7 @@ class GenerativePoetryMosaic:
                 continue
 
             try:
-                poem_lines = self._generate_poem(keyword)
-                if not poem_lines:
-                    self.logger.info("Could not generate poem. Try another keyword.")
-                    continue
-
-                background_image = self._generate_background_image(poem_lines[0])
-                if background_image is None:
-                    self.logger.info(
-                        "Could not generate background image. Try another keyword."
-                    )
-                    continue
-
-                tile = self._create_tile(poem_lines, background_image)
-                self._add_tile_to_canvas(tile)
-                self.renderer.render(np.array(self.canvas))
-
+                self._step(keyword)
             except Exception as e:
                 self.logger.error(f"An error occurred: {e}", exc_info=True)
                 self.logger.info("Continuing...")
